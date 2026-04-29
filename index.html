@@ -1,256 +1,195 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Sergi Run</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sergei Run</title>
 
-  <!-- Fuente -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+    --primary: #6EC1B6;
+    --secondary: #8DBFD9;
+    --dark: #2E3A46;
+    --light: #F5F7FA;
+}
 
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background: #f5f7fa;
-      color: #1f2d3d;
-    }
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--light);
+    color: var(--dark);
+}
 
-    header {
-      padding: 20px;
-      text-align: center;
-      background: linear-gradient(135deg, #a8edea, #6aa9ff);
-      color: white;
-      font-weight: 600;
-      font-size: 20px;
-    }
+/* HEADER */
+header {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
 
-    .container {
-      padding: 20px;
-    }
+.logo {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px;
+}
 
-    .card {
-      background: white;
-      padding: 16px;
-      border-radius: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
+.logo img {
+    width: 32px;
+    height: 32px;
+    margin: 0 4px;
+    border-radius: 50%;
+    opacity: 0.9;
+}
 
-    .title {
-      font-size: 14px;
-      color: #6b7c93;
-      margin-bottom: 8px;
-    }
+/* NAV */
+nav {
+    display: flex;
+    justify-content: space-around;
+    background: white;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    border-top: 1px solid #ddd;
+}
 
-    .value {
-      font-size: 22px;
-      font-weight: 600;
-    }
+nav button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    font-weight: bold;
+    color: var(--dark);
+}
 
-    .progress-bar {
-      height: 8px;
-      background: #e0e6ed;
-      border-radius: 10px;
-      overflow: hidden;
-      margin-top: 10px;
-    }
+/* CONTENT */
+.container {
+    padding: 20px;
+    padding-bottom: 80px;
+}
 
-    .progress {
-      height: 100%;
-      background: linear-gradient(90deg, #6dd5ed, #2193b0);
-      width: 0%;
-    }
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
 
-    nav {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      background: white;
-      display: flex;
-      justify-content: space-around;
-      border-top: 1px solid #ddd;
-      padding: 10px 0;
-    }
+.title {
+    font-size: 14px;
+    color: gray;
+}
 
-    nav button {
-      background: none;
-      border: none;
-      font-size: 14px;
-      color: #6b7c93;
-    }
+.value {
+    font-size: 26px;
+    font-weight: bold;
+}
 
-    nav button.active {
-      color: #2193b0;
-      font-weight: 600;
-    }
-
-    section {
-      display: none;
-    }
-
-    section.active {
-      display: block;
-    }
-
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 6px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-    }
-
-    button.primary {
-      background: #2193b0;
-      color: white;
-      padding: 10px;
-      border: none;
-      border-radius: 10px;
-      width: 100%;
-      cursor: pointer;
-    }
-
-  </style>
+/* BUTTON */
+.btn {
+    background: var(--primary);
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    margin-top: 10px;
+    width: 100%;
+}
+</style>
 </head>
 
 <body>
 
-<header>SERGI RUN</header>
+<header>
+    <div class="logo">
+        S E R G 
+        <img src="logo.png" alt="logo"> 
+        I &nbsp; RUN
+    </div>
+</header>
 
 <div class="container">
 
-  <!-- INICIO -->
-  <section id="inicio" class="active">
-
+    <!-- EVENTO -->
     <div class="card">
-      <div class="title">Evento objetivo</div>
-      <input type="text" id="eventoNombre" placeholder="Nombre carrera">
-      <input type="date" id="eventoFecha">
-      <input type="number" id="eventoKm" placeholder="Kilómetros">
-
-      <div class="value" id="diasRestantes">0 días</div>
+        <div class="title">Carrera objetivo</div>
+        <div class="value" id="eventName">Media Maratón</div>
+        <div id="countdown">Faltan 0 días</div>
     </div>
 
+    <!-- PESO -->
     <div class="card">
-      <div class="title">Peso</div>
-
-      <input type="number" id="pesoActual" placeholder="Peso actual">
-      <input type="number" id="pesoObjetivo" placeholder="Peso objetivo">
-      <input type="number" id="pesoInicial" placeholder="Peso inicial">
-
-      <div class="progress-bar">
-        <div class="progress" id="barraPeso"></div>
-      </div>
-
-      <div class="value" id="porcentajePeso">0%</div>
-
-      <button class="primary" onclick="calcularPeso()">Actualizar</button>
+        <div class="title">Peso</div>
+        <div class="value" id="peso">99 kg</div>
+        <div id="progresoPeso">50% del objetivo</div>
+        <button class="btn" onclick="actualizarPeso()">Actualizar peso</button>
     </div>
 
+    <!-- RITMO -->
     <div class="card">
-      <div class="title">Ritmo promedio</div>
-      <div class="value" id="ritmoPromedio">-- min/km</div>
+        <div class="title">Ritmo promedio</div>
+        <div class="value" id="ritmo">5:30 min/km</div>
     </div>
 
+    <!-- RACHA -->
     <div class="card">
-      <div class="title">Racha</div>
-      <div class="value">🔥 0 semanas</div>
+        <div class="title">Racha</div>
+        <div class="value" id="racha">3 semanas seguidas</div>
     </div>
-
-  </section>
-
-  <!-- PROGRESO -->
-  <section id="progreso">
-    <div class="card">
-      <div class="title">Progreso</div>
-      <p>Aquí irán gráficos (Chart.js)</p>
-    </div>
-  </section>
-
-  <!-- PLAN -->
-  <section id="plan">
-    <div class="card">
-      <div class="title">Plan semanal</div>
-
-      <input placeholder="Lunes">
-      <input placeholder="Martes">
-      <input placeholder="Miércoles">
-      <input placeholder="Jueves">
-      <input placeholder="Viernes">
-      <input placeholder="Sábado">
-      <input placeholder="Domingo">
-
-      <button class="primary">Guardar plan</button>
-    </div>
-  </section>
-
-  <!-- ENTRENAMIENTO -->
-  <section id="entrenamiento">
-    <div class="card">
-      <div class="title">Registrar entrenamiento</div>
-
-      <input type="number" id="distancia" placeholder="Distancia (km)">
-      <input type="number" id="tiempo" placeholder="Tiempo (min)">
-      <input type="number" id="fc" placeholder="Frecuencia cardíaca">
-
-      <button class="primary" onclick="guardarEntrenamiento()">Guardar</button>
-    </div>
-  </section>
 
 </div>
 
-<!-- NAV -->
 <nav>
-  <button onclick="cambiarTab('inicio')" class="active">Inicio</button>
-  <button onclick="cambiarTab('progreso')">Progreso</button>
-  <button onclick="cambiarTab('plan')">Plan</button>
-  <button onclick="cambiarTab('entrenamiento')">Entrenar</button>
+    <button onclick="alert('Inicio')">Inicio</button>
+    <button onclick="alert('Progreso')">Progreso</button>
+    <button onclick="alert('Plan')">Plan</button>
+    <button onclick="alert('Entrenar')">Entrenar</button>
 </nav>
 
 <script>
+// CONFIG INICIAL (luego esto va a Firebase)
+const eventDate = new Date("2026-03-01");
+const pesoInicial = 103;
+const pesoActual = 99;
+const pesoObjetivo = 95;
 
-  function cambiarTab(tab) {
-    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
+// COUNTDOWN
+function updateCountdown() {
+    const today = new Date();
+    const diff = eventDate - today;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    document.getElementById("countdown").innerText = `Faltan ${days} días`;
+}
+updateCountdown();
 
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
-    event.target.classList.add("active");
-  }
+// PROGRESO PESO
+function calcularProgreso() {
+    const progreso = ((pesoInicial - pesoActual) / (pesoInicial - pesoObjetivo)) * 100;
+    document.getElementById("progresoPeso").innerText = `${Math.round(progreso)}% del objetivo`;
+}
+calcularProgreso();
 
-  function calcularPeso() {
-    let actual = parseFloat(document.getElementById("pesoActual").value);
-    let objetivo = parseFloat(document.getElementById("pesoObjetivo").value);
-    let inicial = parseFloat(document.getElementById("pesoInicial").value);
+// UPDATE PESO (mock)
+function actualizarPeso() {
+    const nuevo = prompt("Ingresa nuevo peso:");
+    if(nuevo) {
+        document.getElementById("peso").innerText = nuevo + " kg";
+    }
+}
 
-    let porcentaje = ((inicial - actual) / (inicial - objetivo)) * 100;
+/*
+HOOK FIREBASE FUTURO:
 
-    document.getElementById("porcentajePeso").innerText = porcentaje.toFixed(1) + "%";
-    document.getElementById("barraPeso").style.width = porcentaje + "%";
-  }
+- Guardar peso
+- Guardar entrenamientos
+- Calcular racha automáticamente
+- Promedio ritmo desde colección entrenamientos
 
-  function calcularDias() {
-    let fecha = new Date(document.getElementById("eventoFecha").value);
-    let hoy = new Date();
-
-    let diff = fecha - hoy;
-    let dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-    document.getElementById("diasRestantes").innerText = dias + " días";
-  }
-
-  document.getElementById("eventoFecha").addEventListener("change", calcularDias);
-
-  function guardarEntrenamiento() {
-    let distancia = document.getElementById("distancia").value;
-    let tiempo = document.getElementById("tiempo").value;
-
-    let ritmo = (tiempo / distancia).toFixed(2);
-
-    alert("Guardado ✔ Ritmo: " + ritmo + " min/km");
-  }
-
+*/
 </script>
 
 </body>
