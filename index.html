@@ -1,284 +1,257 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SERGEI RUN v2.0</title>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto+Mono&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Paleta Clara - Opción 1 de la foto */
-            --primary: #2c3e50;
-            --accent-light: #a8dadc;
-            --accent-medium: #457b9d;
-            --bg-light: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-main: #1d3557;
-            --text-muted: #6c757d;
-            --nav-bg: #ffffff;
-            --safe-bottom: env(safe-area-inset-bottom);
-        }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        
-        body { 
-            background: var(--bg-light); 
-            color: var(--text-main); 
-            font-family: 'Roboto', sans-serif; 
-            padding-bottom: calc(90px + var(--safe-bottom)); 
-            overflow-x: hidden;
-        }
+  <meta charset="UTF-8">
+  <title>Sergi Run</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        /* --- LOGO SERGEI RUN (Estilo Opción 1/2) --- */
-        #hdr { 
-            position: sticky; top: 0; z-index: 1000; 
-            background: rgba(255,255,255,0.9); 
-            backdrop-filter: blur(10px); 
-            border-bottom: 1px solid rgba(0,0,0,0.05); 
-            display: flex; flex-direction: column; align-items: center; 
-            padding: 15px 0; gap: 5px;
-        }
+  <!-- Fuente -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
-        .logo-container { display: flex; align-items: center; gap: 10px; }
-        .logo-text { font-family: 'Oswald', sans-serif; font-size: 32px; letter-spacing: 6px; font-weight: 700; color: var(--primary); }
-        .logo-text span { color: var(--accent-medium); position: relative; }
-        /* Líneas horizontales del logo */
-        .logo-line { width: 100px; height: 2px; background: linear-gradient(to right, transparent, var(--accent-light), transparent); margin-top: -5px; }
-        .run-tag { font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 8px; color: var(--accent-medium); margin-top: -5px; }
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f5f7fa;
+      color: #1f2d3d;
+    }
 
-        /* --- NAVEGACIÓN (Iconos de la Foto 2) --- */
-        #nav { 
-            position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; 
-            background: var(--nav-bg); 
-            border-top: 1px solid rgba(0,0,0,0.1); 
-            display: flex; height: calc(75px + var(--safe-bottom)); 
-            padding-bottom: var(--safe-bottom);
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.03);
-        }
-        
-        .nb { 
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            background: none; border: none; color: var(--text-muted); cursor: pointer; 
-            transition: 0.3s; 
-        }
-        
-        .nb.on { color: var(--accent-medium); }
-        
-        /* Icono Progreso Custom (Foto 2) */
-        .icon-progreso { width: 24px; height: 24px; border: 2px solid currentColor; border-radius: 50%; position: relative; }
-        .icon-progreso::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
-        
-        .nb span { font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 1px; margin-top: 5px; }
+    header {
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(135deg, #a8edea, #6aa9ff);
+      color: white;
+      font-weight: 600;
+      font-size: 20px;
+    }
 
-        /* --- COMPONENTES --- */
-        .page { display: none; padding: 20px; max-width: 500px; margin: 0 auto; animation: fadeIn 0.4s ease; }
-        .page.on { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .container {
+      padding: 20px;
+    }
 
-        .card { 
-            background: var(--card-bg); 
-            border-radius: 20px; padding: 25px; margin-bottom: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
-            border: 1px solid rgba(0,0,0,0.02);
-        }
+    .card {
+      background: white;
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
 
-        .hero-card { 
-            background: var(--primary); color: white; 
-            background: linear-gradient(135deg, var(--primary) 0%, #457b9d 100%);
-        }
+    .title {
+      font-size: 14px;
+      color: #6b7c93;
+      margin-bottom: 8px;
+    }
 
-        /* --- INPUT PESO INICIO --- */
-        .weight-input-group {
-            display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.03);
-            padding: 15px; border-radius: 15px; margin-top: 15px;
-        }
-        .weight-input-group input {
-            flex: 1; background: transparent; border: none; font-family: 'Roboto Mono';
-            font-size: 20px; outline: none; color: var(--text-main);
-        }
+    .value {
+      font-size: 22px;
+      font-weight: 600;
+    }
 
-        /* --- TABLA PLANIFICACIÓN (Foto 3) --- */
-        .plan-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .plan-table th { text-align: left; padding: 12px; font-family: 'Oswald'; color: var(--text-muted); border-bottom: 2px solid var(--accent-light); }
-        .plan-table td { padding: 15px 12px; border-bottom: 1px solid rgba(0,0,0,0.05); font-family: 'Roboto Mono'; font-size: 14px; }
-        .day-label { font-weight: 700; color: var(--primary); font-family: 'Roboto'; }
+    .progress-bar {
+      height: 8px;
+      background: #e0e6ed;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
 
-        /* --- BOTONES --- */
-        .btn { 
-            width: 100%; padding: 15px; border-radius: 12px; border: none;
-            font-family: 'Oswald'; font-weight: 700; cursor: pointer; transition: 0.2s;
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-        .btn-primary { background: var(--accent-medium); color: white; }
-        .btn-outline { background: transparent; border: 2px solid var(--accent-light); color: var(--accent-medium); }
+    .progress {
+      height: 100%;
+      background: linear-gradient(90deg, #6dd5ed, #2193b0);
+      width: 0%;
+    }
 
-        /* Gráfico Provisorio */
-        .chart-container { height: 200px; width: 100%; display: flex; align-items: flex-end; gap: 10px; padding-top: 20px; }
-        .chart-bar { flex: 1; background: var(--accent-light); border-radius: 5px 5px 0 0; transition: 0.5s; position: relative; }
-        .chart-bar::before { content: attr(data-val); position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-family: 'Roboto Mono'; }
+    nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: white;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid #ddd;
+      padding: 10px 0;
+    }
 
-    </style>
+    nav button {
+      background: none;
+      border: none;
+      font-size: 14px;
+      color: #6b7c93;
+    }
+
+    nav button.active {
+      color: #2193b0;
+      font-weight: 600;
+    }
+
+    section {
+      display: none;
+    }
+
+    section.active {
+      display: block;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    button.primary {
+      background: #2193b0;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+  </style>
 </head>
+
 <body>
 
-<header id="hdr">
-    <div class="logo-container">
-        <div class="logo-text">SERG<span>E</span>I</div>
+<header>SERGI RUN</header>
+
+<div class="container">
+
+  <!-- INICIO -->
+  <section id="inicio" class="active">
+
+    <div class="card">
+      <div class="title">Evento objetivo</div>
+      <input type="text" id="eventoNombre" placeholder="Nombre carrera">
+      <input type="date" id="eventoFecha">
+      <input type="number" id="eventoKm" placeholder="Kilómetros">
+
+      <div class="value" id="diasRestantes">0 días</div>
     </div>
-    <div class="logo-line"></div>
-    <div class="run-tag">RUN</div>
-</header>
 
-<main id="app">
-    <!-- INICIO -->
-    <section class="page on" id="p-inicio">
-        <div class="card hero-card">
-            <label style="font-family: 'Oswald'; opacity: 0.8; font-size: 12px; letter-spacing: 1px;">OBJETIVO PRÓXIMO</label>
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px;">
-                <input type="text" id="race-name-display" value="CARRERA DE LA ARMADA" 
-                       style="background: transparent; border: none; color: white; font-family: 'Oswald'; font-size: 24px; width: 70%; outline: none; border-bottom: 1px solid rgba(255,255,255,0.2);">
-                <div style="text-align: right;">
-                    <div id="days-count" style="font-family: 'Roboto Mono'; font-size: 40px; font-weight: 700; line-height: 1;">--</div>
-                    <div style="font-size: 10px; opacity: 0.8;">DÍAS</div>
-                </div>
-            </div>
-            <input type="date" id="race-date-edit" style="margin-top: 15px; background: rgba(255,255,255,0.1); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">
-        </div>
+    <div class="card">
+      <div class="title">Peso</div>
 
-        <div class="card">
-            <h3 style="font-family: 'Oswald'; margin-bottom: 10px;">REGISTRAR PESO ACTUAL</h3>
-            <div class="weight-input-group">
-                <input type="number" id="quick-weight" step="0.1" placeholder="00.0">
-                <span style="font-family: 'Oswald'; color: var(--text-muted);">KG</span>
-                <button class="btn btn-primary" style="width: auto; padding: 10px 20px;" onclick="core.addWeight()">OK</button>
-            </div>
-        </div>
-    </section>
+      <input type="number" id="pesoActual" placeholder="Peso actual">
+      <input type="number" id="pesoObjetivo" placeholder="Peso objetivo">
+      <input type="number" id="pesoInicial" placeholder="Peso inicial">
 
-    <!-- PLAN (Tabla Foto 3) -->
-    <section class="page" id="p-plan">
-        <div class="card">
-            <h2 style="font-family: 'Oswald'; letter-spacing: 1px;">PLANIFICACIÓN SEMANAL</h2>
-            <table class="plan-table">
-                <thead>
-                    <tr><th>DÍA</th><th>SESIÓN</th><th>RITMO (Km)</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td class="day-label">Martes</td><td>3 km</td><td>7:10 - 7:40</td></tr>
-                    <tr><td class="day-label">Jueves</td><td>7 km</td><td>6:45 - 7:05</td></tr>
-                    <tr><td class="day-label">Sábado</td><td>5 km</td><td>6:50 - 7:10</td></tr>
-                    <tr><td class="day-label">Domingo</td><td>13 km</td><td>6:50 - 7:10</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
+      <div class="progress-bar">
+        <div class="progress" id="barraPeso"></div>
+      </div>
 
-    <!-- PROGRESO (Gráfico) -->
-    <section class="page" id="p-progreso">
-        <div class="card">
-            <h2 style="font-family: 'Oswald';">EVOLUCIÓN DE PESO</h2>
-            <div class="chart-container" id="weight-chart">
-                <!-- Barras generadas por JS -->
-            </div>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 20px; text-align: center;">Tus últimos 7 registros</p>
-        </div>
-    </section>
-</main>
+      <div class="value" id="porcentajePeso">0%</div>
 
-<nav id="nav">
-    <button class="nb on" onclick="core.nav('inicio')">
-        <div style="font-size: 20px;">🏠</div><span>INICIO</span>
-    </button>
-    <button class="nb" onclick="core.nav('plan')">
-        <div style="font-size: 20px;">📋</div><span>PLAN</span>
-    </button>
-    <button class="nb" onclick="core.nav('progreso')">
-        <div class="icon-progreso"></div><span>PROGRESO</span>
-    </button>
+      <button class="primary" onclick="calcularPeso()">Actualizar</button>
+    </div>
+
+    <div class="card">
+      <div class="title">Ritmo promedio</div>
+      <div class="value" id="ritmoPromedio">-- min/km</div>
+    </div>
+
+    <div class="card">
+      <div class="title">Racha</div>
+      <div class="value">🔥 0 semanas</div>
+    </div>
+
+  </section>
+
+  <!-- PROGRESO -->
+  <section id="progreso">
+    <div class="card">
+      <div class="title">Progreso</div>
+      <p>Aquí irán gráficos (Chart.js)</p>
+    </div>
+  </section>
+
+  <!-- PLAN -->
+  <section id="plan">
+    <div class="card">
+      <div class="title">Plan semanal</div>
+
+      <input placeholder="Lunes">
+      <input placeholder="Martes">
+      <input placeholder="Miércoles">
+      <input placeholder="Jueves">
+      <input placeholder="Viernes">
+      <input placeholder="Sábado">
+      <input placeholder="Domingo">
+
+      <button class="primary">Guardar plan</button>
+    </div>
+  </section>
+
+  <!-- ENTRENAMIENTO -->
+  <section id="entrenamiento">
+    <div class="card">
+      <div class="title">Registrar entrenamiento</div>
+
+      <input type="number" id="distancia" placeholder="Distancia (km)">
+      <input type="number" id="tiempo" placeholder="Tiempo (min)">
+      <input type="number" id="fc" placeholder="Frecuencia cardíaca">
+
+      <button class="primary" onclick="guardarEntrenamiento()">Guardar</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- NAV -->
+<nav>
+  <button onclick="cambiarTab('inicio')" class="active">Inicio</button>
+  <button onclick="cambiarTab('progreso')">Progreso</button>
+  <button onclick="cambiarTab('plan')">Plan</button>
+  <button onclick="cambiarTab('entrenamiento')">Entrenar</button>
 </nav>
 
 <script>
-const core = {
-    data: {
-        weights: JSON.parse(localStorage.getItem('sr_weights')) || [],
-        raceDate: localStorage.getItem('sr_race_date') || '2024-12-31',
-        raceName: localStorage.getItem('sr_race_name') || 'CARRERA DE LA ARMADA'
-    },
 
-    init() {
-        // Cargar datos guardados
-        document.getElementById('race-date-edit').value = this.data.raceDate;
-        document.getElementById('race-name-display').value = this.data.raceName;
-        
-        // Listeners para edición rápida en inicio
-        document.getElementById('race-date-edit').onchange = (e) => {
-            this.data.raceDate = e.target.value;
-            localStorage.setItem('sr_race_date', e.target.value);
-            this.updateCountdown();
-        };
-        
-        document.getElementById('race-name-display').oninput = (e) => {
-            localStorage.setItem('sr_race_name', e.target.value);
-        };
+  function cambiarTab(tab) {
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
 
-        this.updateCountdown();
-        this.renderChart();
-    },
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    event.target.classList.add("active");
+  }
 
-    nav(id) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-        document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
-        document.getElementById('p-' + id).classList.add('on');
-        event.currentTarget.classList.add('on');
-        if(id === 'progreso') this.renderChart();
-    },
+  function calcularPeso() {
+    let actual = parseFloat(document.getElementById("pesoActual").value);
+    let objetivo = parseFloat(document.getElementById("pesoObjetivo").value);
+    let inicial = parseFloat(document.getElementById("pesoInicial").value);
 
-    updateCountdown() {
-        const target = new Date(this.data.raceDate);
-        const today = new Date();
-        const diff = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
-        document.getElementById('days-count').innerText = diff > 0 ? diff : 0;
-    },
+    let porcentaje = ((inicial - actual) / (inicial - objetivo)) * 100;
 
-    addWeight() {
-        const val = document.getElementById('quick-weight').value;
-        if(!val) return;
-        
-        this.data.weights.push({
-            val: parseFloat(val),
-            date: new Date().toLocaleDateString()
-        });
-        
-        localStorage.setItem('sr_weights', JSON.stringify(this.data.weights));
-        document.getElementById('quick-weight').value = '';
-        alert("Peso guardado: " + val + " kg");
-        this.renderChart();
-    },
+    document.getElementById("porcentajePeso").innerText = porcentaje.toFixed(1) + "%";
+    document.getElementById("barraPeso").style.width = porcentaje + "%";
+  }
 
-    renderChart() {
-        const container = document.getElementById('weight-chart');
-        container.innerHTML = '';
-        const recent = this.data.weights.slice(-7);
-        
-        if(recent.length === 0) {
-            container.innerHTML = "<p style='width:100%; text-align:center; color:#ccc'>Sin datos</p>";
-            return;
-        }
+  function calcularDias() {
+    let fecha = new Date(document.getElementById("eventoFecha").value);
+    let hoy = new Date();
 
-        const max = Math.max(...recent.map(w => w.val));
-        
-        recent.forEach(w => {
-            const bar = document.createElement('div');
-            bar.className = 'chart-bar';
-            const height = (w.val / max) * 100;
-            bar.style.height = height + '%';
-            bar.setAttribute('data-val', w.val);
-            container.appendChild(bar);
-        });
-    }
-};
+    let diff = fecha - hoy;
+    let dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
-window.onload = () => core.init();
+    document.getElementById("diasRestantes").innerText = dias + " días";
+  }
+
+  document.getElementById("eventoFecha").addEventListener("change", calcularDias);
+
+  function guardarEntrenamiento() {
+    let distancia = document.getElementById("distancia").value;
+    let tiempo = document.getElementById("tiempo").value;
+
+    let ritmo = (tiempo / distancia).toFixed(2);
+
+    alert("Guardado ✔ Ritmo: " + ritmo + " min/km");
+  }
+
 </script>
+
 </body>
 </html>
