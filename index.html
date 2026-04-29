@@ -3,61 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SERGEI RUN // V2.1</title>
+  <title>SERGEI RUN // V2.2</title>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #F9FAFB;
       --card: #FFFFFF;
       --border: #E5E9E9;
-      --text: #2C3333; /* Gris profundo de la imagen */
+      --text: #2C3333;
       --sub: #7A8686;
-      --acc: #88C9C1; /* Verde menta del logo */
+      --acc: #88C9C1;
       --track: #F0F4F4;
+      --blue-accent: #2563EB;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { background: var(--bg); color: var(--text); font-family: 'Roboto', sans-serif; padding-bottom: 90px; }
     
-    /* HEADER CON LOGO */
+    /* HEADER CON LOGO INCRUSTADO */
     #hdr { position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 20px; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
     .brand { display: flex; align-items: center; gap: 10px; }
-    .logo-img { height: 40px; width: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
-    .logo-txt { font-family: 'Oswald'; font-weight: 700; font-size: 18px; letter-spacing: 1px; color: var(--text); }
+    .logo-img { height: 45px; width: 45px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+    .logo-txt { font-family: 'Oswald'; font-weight: 700; font-size: 20px; letter-spacing: 1px; color: var(--text); }
     .logo-txt span { color: var(--acc); }
 
     .container { max-width: 500px; margin: 0 auto; padding: 15px; }
 
-    /* HERO & STATS */
-    .hero { background: var(--text); color: white; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; position: relative; }
-    .hero::after { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100%; background: linear-gradient(to left, rgba(136,201,193,0.1), transparent); border-radius: 0 16px 16px 0; }
-    .hero h2 { font-family: 'Oswald'; font-size: 24px; letter-spacing: 1px; }
-    .days-big { font-family: 'Roboto Mono'; font-size: 44px; font-weight: 700; margin: 5px 0; color: var(--acc); }
+    /* 2. CONTADOR DE CARRERA (Estilo Foto 2) */
+    .hero-challenge { background: #1A2E44; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; }
+    .challenge-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.7; font-family: 'Oswald'; display: flex; justify-content: space-between; }
+    .challenge-main { font-size: 28px; font-family: 'Oswald'; margin: 10px 0; font-style: italic; }
+    .challenge-main span { color: var(--acc); font-size: 36px; }
+    .challenge-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+    .challenge-fill { height: 100%; background: var(--acc); width: 40%; }
 
-    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-    .kpi-card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 12px; }
-    .kpi-val { display: block; font-family: 'Roboto Mono'; font-size: 20px; font-weight: 600; color: var(--text); }
-    .kpi-lbl { font-size: 9px; color: var(--sub); text-transform: uppercase; font-family: 'Oswald'; letter-spacing: 1px; margin-top: 2px; }
-
-    /* WEIGHT & PROGRESS */
-    .prog-box { background: var(--card); border: 1px solid var(--border); padding: 18px; border-radius: 12px; margin-bottom: 15px; }
-    .bar-bg { background: var(--track); height: 8px; border-radius: 4px; overflow: hidden; margin: 10px 0; }
-    .bar-fill { background: var(--acc); height: 100%; transition: width 1s ease; }
-
-    /* FORMULARIOS */
-    .tabs { display: flex; background: var(--track); padding: 4px; border-radius: 10px; margin-bottom: 15px; }
-    .tab { flex: 1; padding: 10px; border: none; border-radius: 7px; font-family: 'Oswald'; font-size: 11px; cursor: pointer; color: var(--sub); background: none; }
-    .tab.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-
-    .form-card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; }
-    input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Roboto Mono'; font-size: 14px; margin-bottom: 12px; background: var(--bg); }
+    /* 1. OBJETIVO DE PESO (Estilo Foto 1) */
+    .weight-card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 20px; margin-bottom: 20px; }
+    .weight-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .weight-title { font-family: 'Oswald'; font-size: 11px; color: var(--sub); letter-spacing: 1.5px; }
+    .btn-add-weight { background: var(--blue-accent); color: white; border: none; padding: 6px 14px; border-radius: 15px; font-weight: 700; font-size: 12px; }
     
-    .btn-main { background: var(--text); color: white; border: none; padding: 16px; border-radius: 8px; width: 100%; font-family: 'Oswald'; font-weight: 700; cursor: pointer; letter-spacing: 1px; }
-    .btn-main span { color: var(--acc); }
+    .weight-data { display: flex; justify-content: space-between; align-items: center; }
+    .weight-current { font-size: 18px; color: var(--text); }
+    .weight-current span { color: var(--sub); font-size: 14px; }
+    .weight-pct { color: var(--blue-accent); font-weight: 700; font-size: 18px; }
+    
+    .progress-track { height: 10px; background: #F1F5F9; border-radius: 5px; margin: 12px 0; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--blue-accent); width: 54%; border-radius: 5px; }
+    
+    .weight-summary { display: flex; gap: 20px; }
+    .w-stat-val { display: block; font-size: 20px; font-weight: 700; }
+    .w-lost { color: #10B981; } .w-left { color: var(--blue-accent); }
+    .w-stat-lbl { font-size: 10px; color: var(--sub); }
+
+    .weight-target-box { background: #F8FAFC; border-radius: 15px; padding: 15px; text-align: center; min-width: 80px; }
+    .target-val { font-size: 24px; font-weight: 900; color: var(--blue-accent); display: block; }
+
+    /* 3. PLAN SEMANAL (Estilo Foto 3) */
+    .plan-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    .plan-table th { text-align: left; color: var(--sub); font-family: 'Oswald'; font-size: 11px; padding: 10px 5px; border-bottom: 1px solid var(--border); }
+    .plan-table td { padding: 12px 5px; border-bottom: 1px solid #f9f9f9; }
+    .day-col { font-weight: 500; }
+    .km-col { font-family: 'Roboto Mono'; color: var(--sub); }
 
     /* NAV */
     nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; border-top: 1px solid var(--border); height: 75px; box-shadow: 0 -5px 15px rgba(0,0,0,0.02); }
-    nav button { flex: 1; border: none; background: none; color: var(--sub); font-family: 'Oswald'; font-size: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+    nav button { flex: 1; border: none; background: none; color: var(--sub); font-family: 'Oswald'; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
     nav button.active { color: var(--text); }
     nav button.active svg { fill: var(--acc); }
 
@@ -68,84 +79,93 @@
 
   <div id="hdr">
     <div class="brand">
-      <!-- Sustituye logo.png por la imagen que me pasaste -->
-      <img src="logo.png" alt="S" class="logo-img">
+      <!-- Logo incrustado en código para que siempre se vea -->
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACt+9/LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodWLBCrqglVUFJJIGzUgJCEgRE4CcKASWWjg95SNCQSMBW6M75m3v3n1nvOdwzMz371nZsg83DhSTFEAbMcyFQIDAgI0MTY3MGBkZQC8QACuA6AADKIDYAnM+U9IDfIHCvC/7fEAnM8A9An4Hwdm/x5G/uE9AADg+AAH4LIFALidDABo7YAA6HcB7K8DAAnA+g0AAHBTAAnAz78/O98fH+O7cABoGgEAePwPAAAAAF9vYWRzX21zX2ltZ19kZWNvZGVy" alt="Logo" class="logo-img">
       <div class="logo-txt">SERGEI<span>RUN</span></div>
     </div>
-    <div style="font-family:'Roboto Mono'; font-size:9px; color:var(--acc)">V2.1_LIGHT</div>
+    <div style="font-family:'Roboto Mono'; font-size:9px; color:var(--acc)">V2.2_LIGHT</div>
   </div>
 
   <div class="container">
     
-    <!-- INICIO -->
+    <!-- VISTA INICIO -->
     <div id="view-home">
-      <div class="hero">
-        <h2 id="race-title">21K SANTIAGO</h2>
-        <div class="days-big">42</div>
-        <p style="font-size: 11px; opacity: 0.8; font-family: 'Roboto Mono'">DÍAS PARA LA META | META: 01:45:00</p>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi-card"><span class="kpi-val">08</span><span class="kpi-lbl">Semanas</span></div>
-        <div class="kpi-card"><span class="kpi-val">114k</span><span class="kpi-lbl">Km Totales</span></div>
-        <div class="kpi-card"><span class="kpi-val">95%</span><span class="kpi-lbl">Adherencia</span></div>
-        <div class="kpi-card"><span class="kpi-val">78.2</span><span class="kpi-lbl">Peso Actual</span></div>
-      </div>
-
-      <div class="prog-box">
-        <div style="display:flex; justify-content:space-between; font-family:'Oswald'; font-size:10px">
-          <span style="color:var(--sub)">OBJETIVO DE PESO</span>
-          <span>75.0 KG</span>
+      
+      <!-- 2. Día de la Carrera -->
+      <div class="hero-challenge">
+        <div class="challenge-label">
+          <span>DESAFÍO 21K SANTIAGO 2026</span>
+          <span style="cursor:pointer">EDITAR ✎</span>
         </div>
-        <div class="bar-bg"><div class="bar-fill" style="width: 70%"></div></div>
+        <div class="challenge-main"><span>42</span> días restantes</div>
+        <div class="challenge-bar"><div class="challenge-fill"></div></div>
+        <div class="challenge-label">
+          <span>40% Completado</span>
+          <span>Faltan 6 semanas</span>
+        </div>
       </div>
+
+      <!-- 1. Objetivo de Peso -->
+      <div class="weight-card">
+        <div class="weight-header">
+          <span class="weight-title">OBJETIVO DE PESO</span>
+          <button class="btn-add-weight">+ Peso</button>
+        </div>
+        
+        <div style="display: flex; gap: 15px; align-items: center;">
+          <div style="flex: 1;">
+            <div class="weight-data">
+              <div class="weight-current">98.7<span>kg actual</span></div>
+              <div class="weight-pct">54%</div>
+            </div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+            <div class="weight-summary">
+              <div><span class="w-stat-val w-lost">-4.3kg</span><span class="w-stat-lbl">Perdidos</span></div>
+              <div><span class="w-stat-val w-left">3.7kg</span><span class="w-stat-lbl">Faltan</span></div>
+            </div>
+          </div>
+          
+          <div class="weight-target-box">
+            <span style="font-size: 10px; color: var(--sub); font-family:'Oswald'">OBJETIVO</span>
+            <span class="target-val">95</span>
+            <span style="font-size: 10px; color: var(--sub)">kg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Plan Semanal -->
+      <div class="weight-card">
+        <div class="weight-header">
+          <span class="weight-title">📅 PLAN PRÓXIMA SEMANA</span>
+        </div>
+        <table class="plan-table">
+          <thead>
+            <tr><th>DÍA</th><th>SESIÓN</th><th style="text-align:right">RITMO KM</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="day-col">Martes</td><td>3 km</td><td class="km-col" style="text-align:right">7:10-7:40</td></tr>
+            <tr><td class="day-col">Jueves</td><td>7 km</td><td class="km-col" style="text-align:right">6:45-7:05</td></tr>
+            <tr><td class="day-col">Sábado</td><td>5 km</td><td class="km-col" style="text-align:right">6:50-7:10</td></tr>
+            <tr><td class="day-col">Domingo</td><td>13 km</td><td class="km-col" style="text-align:right">6:50-7:10</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:15px; font-weight:700; font-size:13px; color:var(--text)">
+          👉 Total: 29–30 km
+        </div>
+      </div>
+
     </div>
 
-    <!-- PLAN -->
+    <!-- VISTA REGISTRO (PLAN) -->
     <div id="view-plan" class="hidden">
-      <div class="tabs">
-        <button class="tab active">CARRERA</button>
-        <button class="tab">FUERZA</button>
-        <button class="tab">PESO</button>
-      </div>
-
-      <div class="form-card">
-        <label style="font-family:'Oswald'; font-size:10px; color:var(--sub); margin-bottom:5px; display:block">DISTANCIA KM</label>
-        <input type="number" step="0.1" placeholder="0.0">
-        
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
-          <div>
-            <label style="font-family:'Oswald'; font-size:10px; color:var(--sub)">TIEMPO MIN</label>
-            <input type="number">
-          </div>
-          <div>
-            <label style="font-family:'Oswald'; font-size:10px; color:var(--sub)">RITMO</label>
-            <input type="text" readonly placeholder="0:00" style="background:var(--track)">
-          </div>
-        </div>
-        
-        <button class="btn-main">REGISTRAR <span>ENTRENAMIENTO</span></button>
-      </div>
-    </div>
-
-    <!-- STATS -->
-    <div id="view-stats" class="hidden">
-      <div class="prog-box">
-        <span class="kpi-lbl">VOLUMEN SEMANAL</span>
-        <div style="display:flex; align-items:flex-end; height:100px; gap:8px; margin-top:15px">
-            <div style="flex:1; background:var(--track); height:30%"></div>
-            <div style="flex:1; background:var(--acc); height:60%"></div>
-            <div style="flex:1; background:var(--text); height:85%"></div>
-            <div style="flex:1; background:var(--acc); height:70%"></div>
+      <div class="weight-card">
+        <span class="weight-title">REGISTRAR ACTIVIDAD</span>
+        <div style="margin-top:15px">
+          <input type="number" placeholder="Distancia (Km)" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px">
+          <input type="text" placeholder="Tiempo (HH:MM:SS)" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px">
+          <button class="btn-add-weight" style="width:100%; padding:15px; border-radius:8px; font-size:14px">GUARDAR SESIÓN</button>
         </div>
       </div>
-      
-      <div class="kpi-card" style="margin-bottom:10px">
-        <span class="kpi-lbl">RÉCORD 10K</span>
-        <span class="kpi-val">47:22</span>
-      </div>
-      
-      <button class="btn-main" style="background:none; border:1px solid var(--border); color:var(--text)" onclick="alert('Exportando...')">EXPORTAR HISTORIAL CSV</button>
     </div>
 
   </div>
@@ -157,11 +177,7 @@
     </button>
     <button onclick="show('view-plan')" id="n-plan">
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-      PLAN
-    </button>
-    <button onclick="show('view-stats')" id="n-stats">
-      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg>
-      STATS
+      REGISTRO
     </button>
   </nav>
 
