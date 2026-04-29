@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SERGEI - Training Tracker</title>
+    <title>SERGEI // S01</title>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto+Mono&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -11,39 +11,47 @@
             --wh: #E6E9E9; --acc: #C5D1D1; --green: #4CAF50;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bk); color: var(--wh); font-family: 'Roboto', sans-serif; padding-bottom: 80px; }
+        body { background: var(--bk); color: var(--wh); font-family: 'Roboto', sans-serif; padding-bottom: 90px; }
         
-        #hdr { position: sticky; top: 0; background: rgba(15,18,18,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--g7); padding: 15px; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-family: 'Oswald'; letter-spacing: 3px; font-weight: 700; }
+        #hdr { position: sticky; top: 0; background: rgba(15,18,18,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--g7); padding: 15px; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-family: 'Oswald'; letter-spacing: 3px; font-weight: 700; font-size: 18px; }
 
-        .container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px 15px; }
         
-        .card { background: var(--g8); border: 1px solid var(--g7); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .clbl { font-family: 'Oswald'; font-size: 11px; letter-spacing: 1px; color: #8E9B9B; text-transform: uppercase; margin-bottom: 10px; }
+        /* DASHBOARD STATS */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: var(--g8); border: 1px solid var(--g7); padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-val { font-family: 'Roboto Mono'; font-size: 24px; color: var(--wh); display: block; }
+        .stat-lbl { font-family: 'Oswald'; font-size: 10px; color: #5E6B6B; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* FORMULARIO CARGA */
-        .input-group { margin-bottom: 10px; }
-        label { display: block; font-size: 12px; margin-bottom: 4px; color: var(--acc); }
-        input, select { width: 100%; background: var(--bk); border: 1px solid var(--g7); color: white; padding: 10px; border-radius: 5px; font-family: 'Roboto Mono'; }
+        /* LISTAS */
+        .clbl { font-family: 'Oswald'; font-size: 11px; letter-spacing: 2px; color: var(--acc); text-transform: uppercase; margin: 25px 0 10px 0; border-left: 3px solid var(--g7); padding-left: 8px; }
         
-        /* LISTADO DE SESIONES */
-        .session-item { display: flex; align-items: center; background: var(--g9); border: 1px solid var(--g7); padding: 12px; border-radius: 6px; margin-bottom: 8px; gap: 12px; transition: 0.3s; }
-        .session-item.done { border-color: var(--green); opacity: 0.7; }
+        .session-item { display: flex; align-items: center; background: var(--g9); border: 1px solid var(--g7); padding: 14px; border-radius: 8px; margin-bottom: 8px; gap: 15px; cursor: pointer; }
+        .session-item.done { border-color: var(--green); opacity: 0.6; }
         .session-info { flex-grow: 1; }
-        .session-date { font-size: 10px; color: var(--acc); font-family: 'Roboto Mono'; }
-        .session-desc { font-family: 'Oswald'; font-size: 16px; }
-        .check-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--g7); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: transparent; }
-        .done .check-btn { background: var(--green); border-color: var(--green); color: white; }
+        .session-date { font-size: 10px; color: #5E6B6B; font-family: 'Roboto Mono'; }
+        .session-desc { font-family: 'Oswald'; font-size: 18px; letter-spacing: 1px; }
+        
+        .check-circle { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--g7); display: flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.3s; }
+        .done .check-circle { background: var(--green); border-color: var(--green); color: white; }
+
+        /* FORM CARGA */
+        .input-card { background: var(--g8); border: 1px solid var(--g7); padding: 20px; border-radius: 8px; }
+        .field { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; font-family: 'Oswald'; color: #8E9B9B; margin-bottom: 5px; }
+        input, select { width: 100%; background: var(--bk); border: 1px solid var(--g7); color: white; padding: 12px; border-radius: 6px; font-family: 'Roboto Mono'; outline: none; }
 
         /* BOTONES */
-        .btn { width: 100%; padding: 12px; border-radius: 6px; border: none; font-family: 'Oswald'; font-weight: 700; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
-        .btn-primary { background: var(--wh); color: var(--bk); }
-        .btn-outline { background: transparent; border: 1px solid var(--g7); color: var(--wh); margin-top: 20px; }
+        .btn { width: 100%; padding: 15px; border-radius: 6px; border: none; font-family: 'Oswald'; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+        .btn-main { background: var(--wh); color: var(--bk); }
+        .btn-csv { background: transparent; border: 1px solid var(--g7); color: var(--wh); margin-top: 30px; font-size: 12px; }
 
-        nav { position: fixed; bottom: 0; width: 100%; background: var(--g9); display: flex; border-top: 1px solid var(--g7); }
-        nav button { flex: 1; padding: 15px; background: none; border: none; color: #5E6B6B; font-family: 'Oswald'; cursor: pointer; }
-        nav button.active { color: var(--wh); border-top: 2px solid var(--wh); }
-
+        /* NAV */
+        nav { position: fixed; bottom: 0; width: 100%; background: rgba(26,30,30,0.98); display: flex; border-top: 1px solid var(--g7); height: 70px; }
+        nav button { flex: 1; padding: 10px; background: none; border: none; color: #5E6B6B; font-family: 'Oswald'; font-size: 12px; letter-spacing: 1px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        nav button.active { color: var(--wh); background: rgba(44,51,51,0.4); }
+        
         .hidden { display: none; }
     </style>
 </head>
@@ -51,104 +59,81 @@
 
     <div id="hdr">
         <div class="logo">SERGEI // S01</div>
-        <div id="week-label" style="font-family: 'Roboto Mono'; font-size: 12px;">PROGRESO</div>
+        <div id="status-tag" style="font-family:'Roboto Mono'; font-size:9px; color:var(--green)">● SYSTEM ONLINE</div>
     </div>
 
     <div class="container">
         
-        <!-- VISTA: PLANIFICAR -->
-        <div id="view-plan" class="hidden">
-            <div class="card">
-                <div class="clbl">Nueva Planificación Semanal</div>
-                <div class="input-group">
-                    <label>Lunes de la semana:</label>
-                    <input type="date" id="plan-monday">
-                </div>
-                <hr style="border:0; border-top:1px solid var(--g7); margin:15px 0;">
-                <div id="sessions-inputs">
-                    <!-- Aquí se podrían agregar más inputs dinámicamente, por ahora fijo 4 -->
-                    <div class="input-group">
-                        <label>Sesión 1 (Día y Km):</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="d1"><option>Martes</option><option>Jueves</option><option>Sábado</option><option>Domingo</option></select>
-                            <input type="number" id="k1" placeholder="Km">
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Sesión 2 (Día y Km):</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="d2"><option>Jueves</option><option>Martes</option><option>Sábado</option><option>Domingo</option></select>
-                            <input type="number" id="k2" placeholder="Km">
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Sesión 3 (Día y Km):</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="d3"><option>Sábado</option><option>Martes</option><option>Jueves</option><option>Domingo</option></select>
-                            <input type="number" id="k3" placeholder="Km">
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>Sesión 4 (Día y Km):</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="d4"><option>Domingo</option><option>Martes</option><option>Jueves</option><option>Sábado</option></select>
-                            <input type="number" id="k4" placeholder="Km">
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="savePlan()">Cargar Semana</button>
-            </div>
-        </div>
-
-        <!-- VISTA: EJECUCIÓN -->
+        <!-- SECCIÓN: PROGRESO (INICIO + STATS) -->
         <div id="view-track">
-            <div class="clbl">Pendientes / Esta Semana</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-val" id="stat-total-km">0</span>
+                    <span class="stat-lbl">Km Totales</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-val" id="stat-efficiency">0%</span>
+                    <span class="stat-lbl">Cumplimiento</span>
+                </div>
+            </div>
+
+            <div class="clbl">Sesiones Pendientes</div>
             <div id="list-pending"></div>
             
-            <div class="clbl" style="margin-top:20px;">Completados</div>
+            <div class="clbl">Historial Completado</div>
             <div id="list-completed"></div>
 
-            <button class="btn btn-outline" onclick="downloadCSV()">Descargar CSV de Progreso</button>
+            <button class="btn btn-csv" onclick="downloadCSV()">Exportar Reporte CSV</button>
+        </div>
+
+        <!-- SECCIÓN: PLANIFICAR -->
+        <div id="view-plan" class="hidden">
+            <div class="input-card">
+                <div class="field">
+                    <label>Lunes de inicio de semana</label>
+                    <input type="date" id="plan-monday">
+                </div>
+                <div id="sessions-container">
+                    <!-- Se generan 4 bloques según la imagen -->
+                    <div class="field"><label>Sesión 1</label><div style="display:flex;gap:5px"><select id="d1"><option>Martes</option></select><input type="number" id="k1" placeholder="Km"></div></div>
+                    <div class="field"><label>Sesión 2</label><div style="display:flex;gap:5px"><select id="d2"><option>Jueves</option></select><input type="number" id="k2" placeholder="Km"></div></div>
+                    <div class="field"><label>Sesión 3</label><div style="display:flex;gap:5px"><select id="d3"><option>Sábado</option></select><input type="number" id="k3" placeholder="Km"></div></div>
+                    <div class="field"><label>Sesión 4</label><div style="display:flex;gap:5px"><select id="d4"><option>Domingo</option></select><input type="number" id="k4" placeholder="Km"></div></div>
+                </div>
+                <button class="btn btn-main" onclick="savePlan()">Cargar al Sistema</button>
+            </div>
         </div>
 
     </div>
 
     <nav>
-        <button id="btn-v-track" class="active" onclick="showView('track')">PROGRESO</button>
-        <button id="btn-v-plan" onclick="showView('plan')">PLANIFICAR</button>
+        <button id="nav-track" class="active" onclick="showView('track')">PROGRESO</button>
+        <button id="nav-plan" onclick="showView('plan')">PLANIFICAR</button>
     </nav>
 
     <script>
         let db = JSON.parse(localStorage.getItem('sergei_db')) || [];
 
         function showView(view) {
-            document.getElementById('view-plan').classList.toggle('hidden', view !== 'plan');
             document.getElementById('view-track').classList.toggle('hidden', view !== 'track');
-            document.getElementById('btn-v-plan').classList.toggle('active', view === 'plan');
-            document.getElementById('btn-v-track').classList.toggle('active', view === 'track');
-            if(view === 'track') renderList();
+            document.getElementById('view-plan').classList.toggle('hidden', view !== 'plan');
+            document.getElementById('nav-track').classList.toggle('active', view === 'track');
+            document.getElementById('nav-plan').classList.toggle('active', view === 'plan');
+            if(view === 'track') render();
         }
 
         function savePlan() {
             const monday = document.getElementById('plan-monday').value;
-            if(!monday) return alert("Selecciona el lunes de inicio");
+            if(!monday) return alert("Indica la fecha del lunes");
 
             for(let i=1; i<=4; i++) {
                 const day = document.getElementById(`d${i}`).value;
                 const km = document.getElementById(`k${i}`).value;
                 if(km) {
-                    db.push({
-                        id: Date.now() + i,
-                        monday: monday,
-                        day: day,
-                        planned_km: km,
-                        actual_km: 0,
-                        done: false
-                    });
+                    db.push({ id: Date.now()+i, monday, day, planned_km: parseFloat(km), actual_km: 0, done: false });
                 }
             }
             localStorage.setItem('sergei_db', JSON.stringify(db));
-            alert("Plan cargado exitosamente");
             showView('track');
         }
 
@@ -157,24 +142,30 @@
             item.done = !item.done;
             item.actual_km = item.done ? item.planned_km : 0;
             localStorage.setItem('sergei_db', JSON.stringify(db));
-            renderList();
+            render();
         }
 
-        function renderList() {
+        function render() {
             const pendingDiv = document.getElementById('list-pending');
             const doneDiv = document.getElementById('list-completed');
-            pendingDiv.innerHTML = '';
-            doneDiv.innerHTML = '';
+            pendingDiv.innerHTML = ''; doneDiv.innerHTML = '';
+            
+            let totalKm = 0;
+            let completedCount = 0;
 
-            // Ordenar por fecha de lunes
             db.sort((a,b) => new Date(b.monday) - new Date(a.monday));
 
             db.forEach(item => {
+                if(item.done) {
+                    totalKm += item.actual_km;
+                    completedCount++;
+                }
+                
                 const html = `
                     <div class="session-item ${item.done ? 'done' : ''}" onclick="toggleTask(${item.id})">
-                        <div class="check-btn">✓</div>
+                        <div class="check-circle">${item.done ? '✓' : ''}</div>
                         <div class="session-info">
-                            <div class="session-date">Semana: ${item.monday} | ${item.day}</div>
+                            <div class="session-date">${item.day} - Sem ${item.monday}</div>
                             <div class="session-desc">${item.planned_km} KM</div>
                         </div>
                     </div>
@@ -182,27 +173,23 @@
                 if(item.done) doneDiv.innerHTML += html;
                 else pendingDiv.innerHTML += html;
             });
+
+            // Actualizar Stats
+            document.getElementById('stat-total-km').innerText = totalKm.toFixed(1);
+            const efficiency = db.length > 0 ? Math.round((completedCount / db.length) * 100) : 0;
+            document.getElementById('stat-efficiency').innerText = efficiency + '%';
         }
 
         function downloadCSV() {
-            let csv = "Lunes_Semana,Dia,Km_Planificado,Km_Real,Completado\n";
-            db.forEach(item => {
-                csv += `${item.monday},${item.day},${item.planned_km},${item.actual_km},${item.done}\n`;
-            });
-            
+            let csv = "Lunes_Semana,Dia,Km_Plan,Km_Real,Status\n";
+            db.forEach(i => csv += `${i.monday},${i.day},${i.planned_km},${i.actual_km},${i.done?'DONE':'PENDING'}\n`);
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.setAttribute('hidden', '');
-            a.setAttribute('href', url);
-            a.setAttribute('download', `progreso_sergei_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            a.href = url; a.download = `sergei_progreso.csv`; a.click();
         }
 
-        // Inicializar
-        renderList();
+        render();
     </script>
 </body>
 </html>
