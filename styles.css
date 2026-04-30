@@ -19,19 +19,8 @@ margin-bottom:16px;
 box-shadow:0 2px 6px rgba(0,0,0,0.05);
 }
 
-nav{
-position:fixed;
-bottom:0;
-width:100%;
-display:flex;
-background:white;
-border-top:1px solid #eee;
-}
-nav button{flex:1;padding:12px;border:none;background:none;}
-
 h1{font-size:28px;margin:0;}
 .label{font-size:12px;color:var(--accent);text-transform:uppercase;}
-.title{font-size:18px;font-weight:bold;}
 
 .progress{height:6px;background:#eee;border-radius:4px;margin-top:10px;}
 .progress div{height:6px;background:var(--blue);}
@@ -43,11 +32,7 @@ text-align:center;
 }
 .stats b{font-size:28px;}
 
-.weight-row{
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
+.blue{background:var(--blue);color:white;}
 
 .run-card{
 background:#F8FAFB;
@@ -56,21 +41,44 @@ padding:12px;
 margin-top:10px;
 text-align:center;
 }
-.run-card .km{font-size:48px;font-weight:bold;color:var(--primary);}
-.run-card .day{font-size:12px;color:var(--accent);text-transform:uppercase;}
 
+.run-card .km{
+font-size:48px;
+font-weight:bold;
+color:var(--primary);
+}
+
+.run-card .day{
+font-size:12px;
+color:var(--accent);
+text-transform:uppercase;
+}
+
+/* PLAN */
 .plan-container{display:flex;gap:12px;}
 .plan-source,.plan-drop{
 flex:1;background:white;border:1px solid #eee;border-radius:12px;padding:10px;
 }
 
-.draggable{padding:10px;background:#F8FAFB;margin-bottom:8px;border-radius:8px;cursor:grab;}
-
-.plan-item{
-display:flex;align-items:center;gap:8px;margin-bottom:8px;
-background:#F8FAFB;padding:8px;border-radius:8px;
+.draggable{
+padding:10px;
+background:#F8FAFB;
+margin-bottom:8px;
+border-radius:8px;
+cursor:grab;
 }
 
+.plan-item{
+display:flex;
+align-items:center;
+gap:8px;
+margin-bottom:8px;
+background:#F8FAFB;
+padding:8px;
+border-radius:8px;
+}
+
+/* MODAL */
 .modal{
 position:fixed;
 bottom:0;
@@ -78,7 +86,60 @@ width:100%;
 background:white;
 padding:20px;
 border-radius:20px 20px 0 0;
+box-shadow:0 -4px 20px rgba(0,0,0,0.1);
 }
 .hidden{display:none;}
 
-.blue{background:var(--blue);color:white;}
+/* TABBAR */
+.tabbar{
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+height:75px;
+display:flex;
+background:#FFFFFF;
+border-top:1px solid #E6ECF0;
+}
+
+.tab{
+flex:1;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+border:none;
+background:none;
+font-size:11px;
+color:#8A9BB0;
+gap:4px;
+position:relative;
+}
+
+.icon{
+width:24px;
+height:24px;
+stroke:#8A9BB0;
+stroke-width:1.8;
+fill:none;
+stroke-linecap:round;
+stroke-linejoin:round;
+}
+
+.tab.active{
+color:#6ECFBA;
+}
+
+.tab.active .icon{
+stroke:#6ECFBA;
+}
+
+.tab.active::after{
+content:"";
+position:absolute;
+bottom:8px;
+width:20px;
+height:3px;
+background:#6ECFBA;
+border-radius:2px;
+}
