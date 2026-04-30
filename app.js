@@ -44,6 +44,17 @@ const app = {
     if(id === "progreso") this.renderProgress();
   },
 
+  header(){
+    return `
+      <header class="app-header">
+        <div class="logo-wrap">
+          <img src="assets/logo-sergei-run.png" alt="SERGEI RUN" class="logo-image">
+        </div>
+        <button class="avatar" onclick="app.openProfileModal()">S</button>
+      </header>
+    `;
+  },
+
   renderAll(){
     this.renderInicio();
     this.renderEntrenamiento();
@@ -73,17 +84,22 @@ const app = {
     return this.weekSessions().reduce((a,s)=>a+(Number(s.km)||0),0);
   },
 
+  activePlan(){
+    if(!this.db.plans.length) return null;
+    return this.db.plans[this.db.plans.length - 1];
+  },
+
   adherence(){
     const activePlan = this.activePlan();
     if(!activePlan || !activePlan.days.length) return 0;
 
-    const trainedDays = new Set(
-      this.weekSessions().map(s =>
-        new Date(s.date).toLocaleDateString("es-CL",{weekday:"long"}).toLowerCase()
-      )
+    const completedDays = new Set(
+      this.weekSessions()
+        .filter(s => s.fromPlan === true && s.planName === activePlan.name)
+        .map(s => s.planDay)
     );
 
-    const done = activePlan.days.filter(p=>trainedDays.has(p.day.toLowerCase())).length;
+    const done = activePlan.days.filter(d => completedDays.has(d.day)).length;
     return Math.round((done / activePlan.days.length) * 100);
   },
 
@@ -93,11 +109,6 @@ const app = {
 
   bestWeek(){
     return Math.max(this.weekSessions().length, this.db.sessions.length ? 1 : 0);
-  },
-
-  activePlan(){
-    if(!this.db.plans.length) return null;
-    return this.db.plans[this.db.plans.length - 1];
   },
 
   weightProgress(){
@@ -132,12 +143,7 @@ const app = {
     const activePlan = this.activePlan();
 
     document.getElementById("inicio").innerHTML = `
-      <header class="app-header">
-        <div>
-          <div class="logo-word">SERGEI <span class="run">RUN</span><span class="version">v01</span></div>
-        </div>
-        <button class="avatar" onclick="app.openProfileModal()">S</button>
-      </header>
+      ${this.header()}
 
       <div class="date">${this.today()}</div>
       <h1>Hola, ${this.db.profile.userName || "Sergei"} 👋</h1>
@@ -295,6 +301,334 @@ const app = {
     return new Date(y,m-1,d).toLocaleDateString("es-CL",{day:"numeric",month:"short",year:"numeric"});
   },
 
+  renderEntrenamiento(){
+    const activePlan = this.activePlan();
+
+    document.getElementById("entrenamiento").innerHTML = `
+      ${this.header()}
+
+      <button class="free-session" onclick="app.openFreeSessionModal()">
+        + SESIÓN LIBRE
+      </button>
+
+      <div class="label" style="margin-bottom:10px;">Mis rutinas</div>
+
+      ${
+        activePlan && activePlan.days.length
+        ? `<div class="routine-list">
+            ${activePlan.days.map((day, index) => this.renderRoutineCard(day, index, activePlan)).join("")}
+          </div>`
+        : `<section class="card empty">
+            <div class="card-title">No hay plan activo.</div>
+            <div class="sub">Crea un plan semanal para ver tus rutinas aquí.</div>
+            <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
+          </section>`
+      }
+    `;
+  },
+
+  renderRoutineCard(day, index, plan){
+    const completed = this.findCompletedPlanSession(day.day, plan.name);
+    const isDone = !!completed;
+
+    return `
+      <section class="routine-card ${isDone ? "done" : ""}">
+        <div class="routine-body">
+          <div class="routine-kicker">
+            <span class="routine-number">${index + 1}</span>
+            ${isDone ? "Completada" : "Planificada"}
+          </div>
+
+          <div class="routine-title">${day.day} — Carrera</div>
+          <div class="routine-sub">Objetivo: ${day.km} km · ${plan.name}</div>
+
+          <div class="routine-tags">
+            <span class="tag plan">Carrera / ${day.km} km</span>
+            <span class="tag">Plan activo</span>
+            ${isDone ? `<span class="tag plan">${completed.km || "-"} km reales</span>` : ""}
+          </div>
+
+          ${isDone ? `<div class="completed-pill">✓ Entrenamiento completado</div>` : ""}
+        </div>
+
+        <div class="routine-note">
+          ✦ Carga plan: ${day.day} / Carrera ${day.km} km
+        </div>
+
+        <button class="routine-action" onclick="app.openCompletePlanModal(${index})">
+          ${isDone ? "✓ COMPLETADO" : "▶ COMPLETAR"}
+        </button>
+      </section>
+    `;
+  },
+
+  findCompletedPlanSession(dayName, planName){
+    return this.weekSessions().find(s =>
+      s.type === "run" &&
+      s.fromPlan === true &&
+      s.planDay === dayName &&
+      s.planName === planName
+    );
+  },
+
+  openCompletePlanModal(index){
+    const plan = this.activePlan();
+    if(!plan) return;
+
+    const day = plan.days[index];
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Completar entrenamiento</div>
+        <div class="modal-subtitle">${day.day} · Objetivo ${day.km} km · ${plan.name}</div>
+
+        <input id="complete-date" type="date" value="${new Date().toISOString().slice(0,10)}">
+        <input id="complete-km" type="number" step="0.1" placeholder="Distancia real km" value="${day.km}">
+        <input id="complete-time" type="number" placeholder="Tiempo total min">
+        <input id="complete-steps" type="number" placeholder="Pasos">
+        <input id="complete-kcal" type="number" placeholder="Kcal">
+        <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media">
+
+        <button class="btn" onclick="app.saveCompletedPlanSession(${index})">Guardar entrenamiento</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  saveCompletedPlanSession(index){
+    const plan = this.activePlan();
+    if(!plan) return;
+
+    const day = plan.days[index];
+
+    const km = document.getElementById("complete-km").value;
+    const time = document.getElementById("complete-time").value;
+    const steps = document.getElementById("complete-steps").value;
+    const kcal = document.getElementById("complete-kcal").value;
+    const fc = document.getElementById("complete-fc").value;
+    const date = document.getElementById("complete-date").value || new Date().toISOString().slice(0,10);
+
+    if(!km || !time){
+      alert("Ingresa al menos distancia y tiempo.");
+      return;
+    }
+
+    const session = {
+      type:"run",
+      fromPlan:true,
+      planName:plan.name,
+      planDay:day.day,
+      plannedKm:day.km,
+      km,
+      time,
+      steps,
+      kcal,
+      fc,
+      date:new Date(date).toISOString(),
+      pace: km && time ? (Number(time) / Number(km)).toFixed(2) : "",
+      diffKm: (Number(km) - Number(day.km)).toFixed(1)
+    };
+
+    this.db.sessions.push(session);
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+    this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+  },
+
+  openFreeSessionModal(){
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Sesión libre</div>
+        <div class="modal-subtitle">Entrenamiento fuera del plan semanal.</div>
+
+        <select id="free-type" onchange="app.renderFreeSessionFields()">
+          <option value="run">Carrera</option>
+          <option value="strength">Fuerza</option>
+        </select>
+
+        <div id="free-fields"></div>
+
+        <button class="btn" onclick="app.saveFreeSession()">Guardar sesión libre</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+
+    this.renderFreeSessionFields();
+  },
+
+  renderFreeSessionFields(){
+    const type = document.getElementById("free-type")?.value;
+    const box = document.getElementById("free-fields");
+    if(!box) return;
+
+    box.innerHTML = type === "run" ? `
+      <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
+      <input id="free-km" type="number" step="0.1" placeholder="Distancia km">
+      <input id="free-steps" type="number" placeholder="Pasos">
+      <input id="free-time" type="number" placeholder="Tiempo total min">
+      <input id="free-kcal" type="number" placeholder="Kcal">
+      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
+    ` : `
+      <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
+      <input id="free-time" type="number" placeholder="Tiempo total min">
+      <input id="free-kcal" type="number" placeholder="Kcal">
+      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
+    `;
+  },
+
+  saveFreeSession(){
+    const type = document.getElementById("free-type").value;
+    const date = document.getElementById("free-date").value || new Date().toISOString().slice(0,10);
+
+    const session = {
+      type,
+      fromPlan:false,
+      date:new Date(date).toISOString(),
+      time:document.getElementById("free-time").value,
+      kcal:document.getElementById("free-kcal").value,
+      fc:document.getElementById("free-fc").value
+    };
+
+    if(type === "run"){
+      session.km = document.getElementById("free-km").value;
+      session.steps = document.getElementById("free-steps").value;
+      session.pace = session.km && session.time
+        ? (Number(session.time) / Number(session.km)).toFixed(2)
+        : "";
+    }
+
+    this.db.sessions.push(session);
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+    this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+  },
+
+  renderPlan(){
+    const activePlan = this.activePlan();
+
+    document.getElementById("plan").innerHTML = `
+      ${this.header()}
+
+      ${activePlan ? `
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="label">${activePlan.name}</div>
+              <div class="card-title">${activePlan.days.length} días cargados</div>
+              <div class="sub">${activePlan.days.map(d=>`${d.day} · ${d.km} km`).join(" / ")}</div>
+            </div>
+            <button class="pill" onclick="app.openPlanModal()">Nuevo plan</button>
+          </div>
+        </section>
+      ` : `
+        <section class="card empty">
+          <div class="card-title">No hay plan semanal cargado.</div>
+          <div class="sub">Crea una semana para comenzar a medir adherencia.</div>
+          <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
+        </section>
+      `}
+
+      <section class="card">
+        <div class="label">Historial de planes</div>
+        ${this.db.plans.length ? this.db.plans.map(p=>`
+          <div class="plan-day">
+            <span>✓</span>
+            <div>
+              <b>${p.name}</b>
+              <div class="sub">${p.days.length} días</div>
+            </div>
+            <span>${p.days.reduce((a,d)=>a+Number(d.km||0),0)} km</span>
+          </div>
+        `).join("") : `<div class="empty">Sin planes guardados.</div>`}
+      </section>
+    `;
+  },
+
+  openPlanModal(){
+    const nextNumber = this.db.plans.length + 1;
+    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Crear plan semanal</div>
+        <div class="modal-subtitle">Selecciona los días y luego ingresa kilómetros objetivo.</div>
+
+        <input id="plan-name" value="Plan semana ${nextNumber}" placeholder="Nombre del plan">
+
+        <div class="plan-list">
+          ${days.map(day=>`
+            <div class="plan-day">
+              <button class="check" id="check-${day}" onclick="app.togglePlanDay('${day}')">✓</button>
+              <span>${day}</span>
+              <input id="km-${day}" type="number" step="0.1" placeholder="km" disabled>
+            </div>
+          `).join("")}
+        </div>
+
+        <button class="btn" onclick="app.savePlanFromModal()">Guardar plan</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  togglePlanDay(day){
+    const check = document.getElementById(`check-${day}`);
+    const input = document.getElementById(`km-${day}`);
+
+    const isOn = check.classList.toggle("on");
+    input.disabled = !isOn;
+    if(isOn) input.focus();
+    else input.value = "";
+  },
+
+  savePlanFromModal(){
+    const name = document.getElementById("plan-name").value.trim() || `Plan semana ${this.db.plans.length + 1}`;
+    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+    const selected = days
+      .filter(day => document.getElementById(`check-${day}`).classList.contains("on"))
+      .map(day => ({
+        day,
+        km:Number(document.getElementById(`km-${day}`).value || 0)
+      }))
+      .filter(d => d.km > 0);
+
+    if(!selected.length){
+      alert("Selecciona al menos un día e ingresa kilómetros.");
+      return;
+    }
+
+    this.db.plans.push({
+      id:Date.now(),
+      name,
+      createdAt:new Date().toISOString(),
+      days:selected
+    });
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+  },
+
+  renderProgress(){
+    document.getElementById("progreso").innerHTML = `
+      ${this.header()}
+
+      <section class="card">
+        <div class="label">Resumen</div>
+        <div class="metrics">
+          <div class="metric"><b>${this.db.weights.length}</b><small>Pesos</small></div>
+          <div class="metric"><b>${this.db.sessions.length}</b><small>Entrenos</small></div>
+          <div class="metric"><b>${this.totalKmWeek().toFixed(1)}</b><small>Km semana</small></div>
+        </div>
+      </section>
+    `;
+  },
+
   openWeightModal(){
     const current = this.lastWeight() || 98.7;
     const goal = this.db.goalWeight || 95;
@@ -407,12 +741,7 @@ const app = {
       return;
     }
 
-    this.db.race = {
-      name,
-      date,
-      distance:Number(distance)
-    };
-
+    this.db.race = {name,date,distance:Number(distance)};
     this.save();
     this.closeModal();
     this.renderAll();
@@ -455,207 +784,14 @@ const app = {
   },
 
   logout(){
-    const ok = confirm("¿Cerrar sesión local? No se borrará tu data guardada, solo se cerrará este panel.");
+    const ok = confirm("¿Cerrar sesión local? No se borrará tu data guardada.");
     if(ok) this.closeModal();
   },
 
-  renderEntrenamiento(){
-    document.getElementById("entrenamiento").innerHTML = `
-      <header class="app-header">
-        <div class="logo-word">ENTRENAR</div>
-        <button class="avatar" onclick="app.openProfileModal()">S</button>
-      </header>
-
-      <section class="card">
-        <div class="label">Añadir entrenamiento</div>
-        <select id="train-type" onchange="app.renderTrainingFields()">
-          <option value="run">Carrera</option>
-          <option value="strength">Fuerza</option>
-        </select>
-        <div id="training-fields"></div>
-        <button class="btn" onclick="app.saveTraining()">Guardar entrenamiento</button>
-      </section>
-    `;
-
-    this.renderTrainingFields();
-  },
-
-  renderTrainingFields(){
-    const type = document.getElementById("train-type")?.value;
-    const box = document.getElementById("training-fields");
-    if(!box) return;
-
-    box.innerHTML = type==="run" ? `
-      <input id="km" type="number" step="0.1" placeholder="Distancia km">
-      <input id="steps" type="number" placeholder="Pasos">
-      <input id="time" type="number" placeholder="Tiempo total min">
-      <input id="kcal" type="number" placeholder="Kcal">
-      <input id="fc" type="number" placeholder="Frecuencia cardíaca media">
-      <input id="date" type="date">
-    ` : `
-      <input id="time" type="number" placeholder="Tiempo total min">
-      <input id="kcal" type="number" placeholder="Kcal">
-      <input id="fc" type="number" placeholder="Frecuencia cardíaca media">
-      <input id="date" type="date">
-    `;
-  },
-
-  saveTraining(){
-    const type = document.getElementById("train-type").value;
-    const date = document.getElementById("date").value || new Date().toISOString();
-
-    const data = {
-      type,
-      date:new Date(date).toISOString(),
-      time:document.getElementById("time").value,
-      kcal:document.getElementById("kcal").value,
-      fc:document.getElementById("fc").value
-    };
-
-    if(type==="run"){
-      data.km = document.getElementById("km").value;
-      data.steps = document.getElementById("steps").value;
-      data.pace = data.km && data.time ? (Number(data.time)/Number(data.km)).toFixed(2) : "";
-    }
-
-    this.db.sessions.push(data);
-    this.save();
-    this.renderAll();
-    this.go("inicio", document.querySelector(".tab"));
-  },
-
-  renderPlan(){
-    const activePlan = this.activePlan();
-
-    document.getElementById("plan").innerHTML = `
-      <header class="app-header">
-        <div class="logo-word">PLAN</div>
-        <button class="avatar" onclick="app.openProfileModal()">S</button>
-      </header>
-
-      ${activePlan ? `
-        <section class="card">
-          <div class="card-head">
-            <div>
-              <div class="label">${activePlan.name}</div>
-              <div class="card-title">${activePlan.days.length} días cargados</div>
-              <div class="sub">${activePlan.days.map(d=>`${d.day} · ${d.km} km`).join(" / ")}</div>
-            </div>
-            <button class="pill" onclick="app.openPlanModal()">Nuevo plan</button>
-          </div>
-        </section>
-      ` : `
-        <section class="card empty">
-          <div class="card-title">No hay plan semanal cargado.</div>
-          <div class="sub">Crea una semana para comenzar a medir adherencia.</div>
-          <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
-        </section>
-      `}
-
-      <section class="card">
-        <div class="label">Historial de planes</div>
-        ${this.db.plans.length ? this.db.plans.map(p=>`
-          <div class="plan-day">
-            <span>✓</span>
-            <div>
-              <b>${p.name}</b>
-              <div class="sub">${p.days.length} días</div>
-            </div>
-            <span>${p.days.reduce((a,d)=>a+Number(d.km||0),0)} km</span>
-          </div>
-        `).join("") : `<div class="empty">Sin planes guardados.</div>`}
-      </section>
-    `;
-  },
-
-  openPlanModal(){
-    const nextNumber = this.db.plans.length + 1;
-    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-
-    this.showModal(`
-      <div class="modal-box">
-        <div class="modal-title">Crear plan semanal</div>
-        <div class="modal-subtitle">Selecciona los días y luego ingresa kilómetros objetivo.</div>
-
-        <input id="plan-name" value="Plan semana ${nextNumber}" placeholder="Nombre del plan">
-
-        <div class="plan-list">
-          ${days.map(day=>`
-            <div class="plan-day">
-              <button class="check" id="check-${day}" onclick="app.togglePlanDay('${day}')">✓</button>
-              <span>${day}</span>
-              <input id="km-${day}" type="number" step="0.1" placeholder="km" disabled>
-            </div>
-          `).join("")}
-        </div>
-
-        <button class="btn" onclick="app.savePlanFromModal()">Guardar plan</button>
-        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
-      </div>
-    `);
-  },
-
-  togglePlanDay(day){
-    const check = document.getElementById(`check-${day}`);
-    const input = document.getElementById(`km-${day}`);
-
-    const isOn = check.classList.toggle("on");
-    input.disabled = !isOn;
-    if(isOn) input.focus();
-    else input.value = "";
-  },
-
-  savePlanFromModal(){
-    const name = document.getElementById("plan-name").value.trim() || `Plan semana ${this.db.plans.length + 1}`;
-    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-
-    const selected = days
-      .filter(day => document.getElementById(`check-${day}`).classList.contains("on"))
-      .map(day => ({
-        day,
-        km:Number(document.getElementById(`km-${day}`).value || 0)
-      }))
-      .filter(d => d.km > 0);
-
-    if(!selected.length){
-      alert("Selecciona al menos un día e ingresa kilómetros.");
-      return;
-    }
-
-    this.db.plans.push({
-      id:Date.now(),
-      name,
-      createdAt:new Date().toISOString(),
-      days:selected
-    });
-
-    this.save();
-    this.closeModal();
-    this.renderAll();
-  },
-
-  renderProgress(){
-    document.getElementById("progreso").innerHTML = `
-      <header class="app-header">
-        <div class="logo-word">PROGRESO</div>
-        <button class="avatar" onclick="app.openProfileModal()">S</button>
-      </header>
-
-      <section class="card">
-        <div class="label">Resumen</div>
-        <div class="metrics">
-          <div class="metric"><b>${this.db.weights.length}</b><small>Pesos</small></div>
-          <div class="metric"><b>${this.db.sessions.length}</b><small>Entrenos</small></div>
-          <div class="metric"><b>${this.totalKmWeek().toFixed(1)}</b><small>Km semana</small></div>
-        </div>
-      </section>
-    `;
-  },
-
   exportCSV(){
-    let csv = "tipo,fecha,km,tiempo,pasos,kcal,fc,ritmo\n";
+    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,pasos,kcal,fc,ritmo,diferencia_km\n";
     this.db.sessions.forEach(s=>{
-      csv += `${s.type},${s.date},${s.km||""},${s.time||""},${s.steps||""},${s.kcal||""},${s.fc||""},${s.pace||""}\n`;
+      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.time||""},${s.steps||""},${s.kcal||""},${s.fc||""},${s.pace||""},${s.diffKm||""}\n`;
     });
 
     csv += "\nfecha,peso\n";
