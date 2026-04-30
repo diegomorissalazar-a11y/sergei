@@ -1,0 +1,83 @@
+:root{
+--bg:#F8FAFB;
+--primary:#1E3A52;
+--accent:#6ECFBA;
+--blue:#4A7FA5;
+--gray:#8A9BB0;
+}
+
+body{
+margin:0;
+font-family:system-ui;
+background:var(--bg);
+}
+
+.page{
+display:none;
+padding:16px;
+padding-bottom:90px;
+}
+.page.active{display:block;}
+
+.card{
+background:white;
+border-radius:14px;
+padding:16px;
+margin-bottom:16px;
+box-shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+
+nav{
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+background:white;
+border-top:1px solid #eee;
+}
+
+nav button{
+flex:1;
+padding:12px;
+border:none;
+background:none;
+}
+
+.plan-card{
+border:1px solid #eee;
+border-radius:12px;
+padding:12px;
+margin-bottom:10px;
+}
+
+.plan-km{
+font-size:48px;
+font-weight:bold;
+color:var(--primary);
+}
+
+.modal{
+position:fixed;
+bottom:0;
+width:100%;
+background:white;
+border-radius:20px 20px 0 0;
+padding:20px;
+}
+
+.hidden{display:none;}
+
+.wheel{
+height:140px;
+overflow-y:scroll;
+border:1px solid #ddd;
+border-radius:10px;
+scroll-snap-type:y mandatory;
+}
+
+.wheel div{
+height:40px;
+text-align:center;
+line-height:40px;
+scroll-snap-align:center;
+}
