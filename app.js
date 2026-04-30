@@ -1,16 +1,37 @@
 const app = {
   db:{
-    userName:"Sergei",
+    profile:{
+      userName:"Sergei",
+      birthDate:"",
+      height:""
+    },
     goalWeight:95,
     startWeight:null,
     weights:[],
     sessions:[],
-    plans:[]
+    plans:[],
+    race:null
   },
 
   init(){
     this.load();
     this.renderAll();
+  },
+
+  save(){
+    localStorage.setItem("sergei_pwa", JSON.stringify(this.db));
+  },
+
+  load(){
+    const saved = localStorage.getItem("sergei_pwa");
+    if(saved){
+      const parsed = JSON.parse(saved);
+      this.db = {
+        ...this.db,
+        ...parsed,
+        profile:{...this.db.profile, ...(parsed.profile || {})}
+      };
+    }
   },
 
   go(id, el){
@@ -20,16 +41,7 @@ const app = {
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     if(el) el.classList.add("active");
 
-    if(id==="progreso") this.renderProgress();
-  },
-
-  save(){
-    localStorage.setItem("sergei_pwa", JSON.stringify(this.db));
-  },
-
-  load(){
-    const saved = localStorage.getItem("sergei_pwa");
-    if(saved) this.db = {...this.db, ...JSON.parse(saved)};
+    if(id === "progreso") this.renderProgress();
   },
 
   renderAll(){
@@ -62,8 +74,8 @@ const app = {
   },
 
   adherence(){
-    const planDays = this.db.plans.length;
-    if(!planDays) return 0;
+    const activePlan = this.activePlan();
+    if(!activePlan || !activePlan.days.length) return 0;
 
     const trainedDays = new Set(
       this.weekSessions().map(s =>
@@ -71,8 +83,8 @@ const app = {
       )
     );
 
-    const done = this.db.plans.filter(p=>trainedDays.has(p.day.toLowerCase())).length;
-    return Math.round((done / planDays) * 100);
+    const done = activePlan.days.filter(p=>trainedDays.has(p.day.toLowerCase())).length;
+    return Math.round((done / activePlan.days.length) * 100);
   },
 
   streak(){
@@ -83,15 +95,33 @@ const app = {
     return Math.max(this.weekSessions().length, this.db.sessions.length ? 1 : 0);
   },
 
+  activePlan(){
+    if(!this.db.plans.length) return null;
+    return this.db.plans[this.db.plans.length - 1];
+  },
+
   weightProgress(){
     const current = this.lastWeight();
     const goal = this.db.goalWeight;
     const start = this.db.startWeight || current;
 
-    if(!current || !goal || !start || start===goal) return 0;
+    if(!current || !goal || !start || start === goal) return 0;
 
     const pct = ((start - current) / (start - goal)) * 100;
     return Math.max(0, Math.min(100, Math.round(pct)));
+  },
+
+  raceDaysLeft(){
+    if(!this.db.race?.date) return null;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const [y,m,d] = this.db.race.date.split("-").map(Number);
+    const raceDate = new Date(y, m - 1, d);
+
+    const diff = Math.ceil((raceDate - today) / 86400000);
+    return Math.max(0, diff);
   },
 
   renderInicio(){
@@ -99,37 +129,44 @@ const app = {
     const goal = this.db.goalWeight;
     const lost = current && this.db.startWeight ? (this.db.startWeight-current).toFixed(1) : "0.0";
     const missing = current ? Math.max(0,current-goal).toFixed(1) : "0.0";
+    const activePlan = this.activePlan();
 
     document.getElementById("inicio").innerHTML = `
       <header class="app-header">
         <div>
-          <span class="brand">SERGEI <span>RUN</span></span>
-          <span class="version">v01</span>
+          <div class="logo-word">SERGEI <span class="run">RUN</span><span class="version">v01</span></div>
         </div>
-        <div class="avatar">SR</div>
+        <button class="avatar" onclick="app.openProfileModal()">S</button>
       </header>
 
       <div class="date">${this.today()}</div>
-      <h1>Hola, ${this.db.userName} 👋</h1>
+      <h1>Hola, ${this.db.profile.userName || "Sergei"} 👋</h1>
 
-      <section class="card plan-active">
-        <div class="label">Plan activo · Sem 1/16</div>
-        <div class="card-title">Ciclo Fuerza + 10K</div>
-        <div class="sub">Bloque actual: Transmutación (Fuerza)</div>
-        <div class="progress"><div style="width:${this.adherence()}%"></div></div>
-      </section>
+      ${activePlan ? `
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="label">Plan activo · ${activePlan.name}</div>
+              <div class="card-title">${activePlan.days.length} días de entrenamiento</div>
+              <div class="sub">${activePlan.days.map(d=>`${d.day} ${d.km}km`).join(" · ")}</div>
+            </div>
+            <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Editar</button>
+          </div>
+          <div class="progress"><div style="width:${this.adherence()}%"></div></div>
+        </section>
+      ` : `
+        <section class="card">
+          <div class="label">Plan activo</div>
+          <div class="card-title">Sin plan activo</div>
+          <div class="sub">Crea tu planificación semanal para medir adherencia.</div>
+          <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
+        </section>
+      `}
 
       <section class="stats">
         <div class="stat"><b>${this.weekSessions().length}</b><span>Esta semana</span></div>
-        <div class="stat"><b>${this.streak()}</b><span>Racha semanas</span></div>
+        <div class="stat"><b>${this.streak()}</b><span>Racha</span></div>
         <div class="stat"><b>${this.db.sessions.length}</b><span>Total</span></div>
-      </section>
-
-      <section class="card blue-card">
-        <div class="label">Seguimiento semanal · 2026</div>
-        <div>🥇 Mejor semana del año: <b>${this.bestWeek()} sesiones</b></div>
-        <div>⚡ Racha actual: <b>${this.streak()} semanas seguidas</b></div>
-        <div>Esta semana: <b>${this.weekSessions().length} sesiones</b></div>
       </section>
 
       <section class="card">
@@ -160,12 +197,64 @@ const app = {
         </div>
       </section>
 
+      ${this.renderRaceCard()}
+
+      <section class="card blue-card">
+        <div class="label">Seguimiento semanal · ${new Date().getFullYear()}</div>
+        <div>🥇 Mejor semana del año: <b>${this.bestWeek()} sesiones</b></div>
+        <div>⚡ Racha actual: <b>${this.streak()} semanas seguidas</b></div>
+        <div>Esta semana: <b>${this.weekSessions().length} sesiones</b></div>
+      </section>
+
       <div class="section-head">
         <div class="label">Últimos entrenamientos</div>
-        <button class="pill" onclick="app.exportCSV()">Exportar</button>
+        <button class="pill light" onclick="app.exportCSV()">Exportar</button>
       </div>
 
       ${this.renderLastSessions()}
+    `;
+  },
+
+  renderRaceCard(){
+    if(!this.db.race){
+      return `
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="label">Carrera objetivo</div>
+              <div class="card-title">Sin carrera cargada</div>
+              <div class="sub">Agrega tu evento para activar la cuenta regresiva.</div>
+            </div>
+          </div>
+          <button class="btn" onclick="app.openRaceModal()">Agregar carrera</button>
+        </section>
+      `;
+    }
+
+    const days = this.raceDaysLeft();
+
+    return `
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <div class="label">Carrera objetivo</div>
+            <div class="card-title">${this.db.race.name}</div>
+            <div class="sub">${this.db.race.distance} km · ${this.formatDate(this.db.race.date)}</div>
+          </div>
+          <button class="pill light" onclick="app.openRaceModal()">Editar</button>
+        </div>
+
+        <div class="race-box" style="margin-top:12px">
+          <div>
+            <div class="sub">Cuenta regresiva a tu evento objetivo.</div>
+            <div class="progress"><div style="width:${days !== null ? Math.max(5, Math.min(100, 100 - days)) : 0}%"></div></div>
+          </div>
+          <div class="days-counter">
+            <b>${days}</b>
+            <small>días</small>
+          </div>
+        </div>
+      </section>
     `;
   },
 
@@ -197,15 +286,20 @@ const app = {
   relativeDate(date){
     const d = new Date(date).toDateString();
     const t = new Date().toDateString();
-    return d===t ? "Hoy" : new Date(date).toLocaleDateString("es-CL");
+    return d === t ? "Hoy" : new Date(date).toLocaleDateString("es-CL");
+  },
+
+  formatDate(dateString){
+    if(!dateString) return "";
+    const [y,m,d] = dateString.split("-").map(Number);
+    return new Date(y,m-1,d).toLocaleDateString("es-CL",{day:"numeric",month:"short",year:"numeric"});
   },
 
   openWeightModal(){
     const current = this.lastWeight() || 98.7;
     const goal = this.db.goalWeight || 95;
 
-    document.getElementById("modal").classList.remove("hidden");
-    document.getElementById("modal").innerHTML = `
+    this.showModal(`
       <div class="modal-box">
         <div class="modal-title">Actualizar peso</div>
         <div class="modal-subtitle">Usa las ruedas para evitar escribir puntos o comas.</div>
@@ -233,7 +327,7 @@ const app = {
         <button class="btn" onclick="app.saveWeightFromWheels()">Guardar peso</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
-    `;
+    `);
 
     this.buildWeightWheel("currentKgWheel", 80, 150, Math.floor(current));
     this.buildWeightWheel("currentDecWheel", 0, 9, Math.round((current - Math.floor(current)) * 10));
@@ -285,16 +379,91 @@ const app = {
     this.renderAll();
   },
 
-  closeModal(){
-    document.getElementById("modal").classList.add("hidden");
-    document.getElementById("modal").innerHTML="";
+  openRaceModal(){
+    const race = this.db.race || {name:"",date:"",distance:""};
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Carrera objetivo</div>
+        <div class="modal-subtitle">Carga tu evento para activar la cuenta regresiva.</div>
+
+        <input id="race-name" placeholder="Nombre del evento" value="${race.name || ""}">
+        <input id="race-date" type="date" value="${race.date || ""}">
+        <input id="race-distance" type="number" step="0.1" placeholder="Distancia km" value="${race.distance || ""}">
+
+        <button class="btn" onclick="app.saveRace()">Guardar carrera</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  saveRace(){
+    const name = document.getElementById("race-name").value.trim();
+    const date = document.getElementById("race-date").value;
+    const distance = document.getElementById("race-distance").value;
+
+    if(!name || !date || !distance){
+      alert("Completa nombre, fecha y distancia.");
+      return;
+    }
+
+    this.db.race = {
+      name,
+      date,
+      distance:Number(distance)
+    };
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+  },
+
+  openProfileModal(){
+    const p = this.db.profile;
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Perfil</div>
+        <div class="modal-subtitle">Configura tus datos personales y exporta tu información.</div>
+
+        <input id="profile-name" placeholder="Nombre visible" value="${p.userName || "Sergei"}">
+        <input id="profile-birth" type="date" value="${p.birthDate || ""}">
+        <input id="profile-height" type="number" placeholder="Estatura cm" value="${p.height || ""}">
+
+        <button class="btn" onclick="app.saveProfile()">Guardar perfil</button>
+        <button class="btn secondary" onclick="app.exportFullData()">Exportar data completa</button>
+        <button class="btn danger" onclick="app.logout()">Cerrar sesión</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  saveProfile(){
+    this.db.profile.userName = document.getElementById("profile-name").value.trim() || "Sergei";
+    this.db.profile.birthDate = document.getElementById("profile-birth").value;
+    this.db.profile.height = document.getElementById("profile-height").value;
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+  },
+
+  exportFullData(){
+    const data = JSON.stringify(this.db, null, 2);
+    navigator.clipboard.writeText(data);
+    alert("Data completa copiada en formato JSON.");
+  },
+
+  logout(){
+    const ok = confirm("¿Cerrar sesión local? No se borrará tu data guardada, solo se cerrará este panel.");
+    if(ok) this.closeModal();
   },
 
   renderEntrenamiento(){
     document.getElementById("entrenamiento").innerHTML = `
       <header class="app-header">
-        <div class="brand">Entrenamiento</div>
-        <div class="avatar">SR</div>
+        <div class="logo-word">ENTRENAR</div>
+        <button class="avatar" onclick="app.openProfileModal()">S</button>
       </header>
 
       <section class="card">
@@ -356,50 +525,120 @@ const app = {
   },
 
   renderPlan(){
+    const activePlan = this.activePlan();
+
     document.getElementById("plan").innerHTML = `
       <header class="app-header">
-        <div class="brand">Plan semanal</div>
-        <div class="avatar">SR</div>
+        <div class="logo-word">PLAN</div>
+        <button class="avatar" onclick="app.openProfileModal()">S</button>
       </header>
 
+      ${activePlan ? `
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="label">${activePlan.name}</div>
+              <div class="card-title">${activePlan.days.length} días cargados</div>
+              <div class="sub">${activePlan.days.map(d=>`${d.day} · ${d.km} km`).join(" / ")}</div>
+            </div>
+            <button class="pill" onclick="app.openPlanModal()">Nuevo plan</button>
+          </div>
+        </section>
+      ` : `
+        <section class="card empty">
+          <div class="card-title">No hay plan semanal cargado.</div>
+          <div class="sub">Crea una semana para comenzar a medir adherencia.</div>
+          <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
+        </section>
+      `}
+
       <section class="card">
-        <div class="label">Días de entrenamiento</div>
-        <div class="plan-grid">
-          ${["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].map(day=>{
-            const p = this.db.plans.find(x=>x.day===day) || {};
-            return `
-              <div class="plan-day">
-                <span>${day}</span>
-                <input type="number" step="0.1" placeholder="km" value="${p.km || ""}" onchange="app.setPlanDay('${day}', this.value)">
-                <button onclick="app.removePlanDay('${day}')">×</button>
-              </div>
-            `;
-          }).join("")}
-        </div>
+        <div class="label">Historial de planes</div>
+        ${this.db.plans.length ? this.db.plans.map(p=>`
+          <div class="plan-day">
+            <span>✓</span>
+            <div>
+              <b>${p.name}</b>
+              <div class="sub">${p.days.length} días</div>
+            </div>
+            <span>${p.days.reduce((a,d)=>a+Number(d.km||0),0)} km</span>
+          </div>
+        `).join("") : `<div class="empty">Sin planes guardados.</div>`}
       </section>
     `;
   },
 
-  setPlanDay(day, km){
-    const existing = this.db.plans.find(x=>x.day===day);
-    if(existing) existing.km = Number(km);
-    else this.db.plans.push({day, km:Number(km)});
-    this.save();
-    this.renderInicio();
+  openPlanModal(){
+    const nextNumber = this.db.plans.length + 1;
+    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Crear plan semanal</div>
+        <div class="modal-subtitle">Selecciona los días y luego ingresa kilómetros objetivo.</div>
+
+        <input id="plan-name" value="Plan semana ${nextNumber}" placeholder="Nombre del plan">
+
+        <div class="plan-list">
+          ${days.map(day=>`
+            <div class="plan-day">
+              <button class="check" id="check-${day}" onclick="app.togglePlanDay('${day}')">✓</button>
+              <span>${day}</span>
+              <input id="km-${day}" type="number" step="0.1" placeholder="km" disabled>
+            </div>
+          `).join("")}
+        </div>
+
+        <button class="btn" onclick="app.savePlanFromModal()">Guardar plan</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
   },
 
-  removePlanDay(day){
-    this.db.plans = this.db.plans.filter(x=>x.day!==day);
+  togglePlanDay(day){
+    const check = document.getElementById(`check-${day}`);
+    const input = document.getElementById(`km-${day}`);
+
+    const isOn = check.classList.toggle("on");
+    input.disabled = !isOn;
+    if(isOn) input.focus();
+    else input.value = "";
+  },
+
+  savePlanFromModal(){
+    const name = document.getElementById("plan-name").value.trim() || `Plan semana ${this.db.plans.length + 1}`;
+    const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+    const selected = days
+      .filter(day => document.getElementById(`check-${day}`).classList.contains("on"))
+      .map(day => ({
+        day,
+        km:Number(document.getElementById(`km-${day}`).value || 0)
+      }))
+      .filter(d => d.km > 0);
+
+    if(!selected.length){
+      alert("Selecciona al menos un día e ingresa kilómetros.");
+      return;
+    }
+
+    this.db.plans.push({
+      id:Date.now(),
+      name,
+      createdAt:new Date().toISOString(),
+      days:selected
+    });
+
     this.save();
-    this.renderPlan();
-    this.renderInicio();
+    this.closeModal();
+    this.renderAll();
   },
 
   renderProgress(){
     document.getElementById("progreso").innerHTML = `
       <header class="app-header">
-        <div class="brand">Progreso</div>
-        <div class="avatar">SR</div>
+        <div class="logo-word">PROGRESO</div>
+        <button class="avatar" onclick="app.openProfileModal()">S</button>
       </header>
 
       <section class="card">
@@ -424,6 +663,17 @@ const app = {
 
     navigator.clipboard.writeText(csv);
     alert("CSV copiado");
+  },
+
+  showModal(html){
+    const modal = document.getElementById("modal");
+    modal.classList.remove("hidden");
+    modal.innerHTML = html;
+  },
+
+  closeModal(){
+    document.getElementById("modal").classList.add("hidden");
+    document.getElementById("modal").innerHTML = "";
   }
 };
 
