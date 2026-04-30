@@ -6,257 +6,275 @@
 <title>SERGEI RUN</title>
 
 <style>
+:root {
+--bg:#F8FAFB;
+--primary:#1E3A52;
+--accent:#6ECFBA;
+--blue:#4A7FA5;
+--card:#ffffff;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background:#F8FAFB;
-    margin:0;
+margin:0;
+font-family: system-ui;
+background:var(--bg);
 }
 
-/* ===== HEADER ===== */
-header {
-    padding:16px;
-    background:white;
-    border-bottom:1px solid #eee;
+/* NAV */
+nav {
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+background:white;
+border-top:1px solid #eee;
 }
 
-h1 { margin:0; font-size:24px; }
+nav button {
+flex:1;
+padding:12px;
+border:none;
+background:none;
+}
 
-/* ===== CARDS ===== */
+/* PAGE */
+.page {
+display:none;
+padding:16px;
+padding-bottom:80px;
+}
+
+.page.active { display:block; }
+
+/* CARD */
 .card {
-    background:white;
-    margin:16px;
-    padding:16px;
-    border-radius:12px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.05);
+background:white;
+border-radius:14px;
+padding:16px;
+margin-bottom:16px;
+box-shadow:0 2px 6px rgba(0,0,0,0.05);
 }
 
-/* ===== PLAN ===== */
+/* PLAN */
 .plan-card {
-    border:1px solid #eee;
-    border-radius:12px;
-    padding:16px;
-    margin-bottom:12px;
+border:1px solid #eee;
+border-radius:12px;
+padding:14px;
+margin-bottom:10px;
 }
 
 .plan-day {
-    color:#6ECFBA;
-    font-size:12px;
-    font-weight:bold;
+font-size:12px;
+color:var(--accent);
+font-weight:bold;
 }
 
 .plan-km {
-    font-size:40px;
-    font-weight:bold;
-    color:#1E3A52;
+font-size:42px;
+font-weight:bold;
+color:var(--primary);
 }
 
-.plan-status {
-    margin-top:8px;
-    font-size:12px;
-}
-
-.plan-diff.pos { color:green; }
-.plan-diff.neg { color:red; }
-
-/* ===== MODAL ===== */
+/* MODAL */
 .modal {
-    position:fixed;
-    bottom:0;
-    width:100%;
-    background:white;
-    border-radius:20px 20px 0 0;
-    padding:20px;
+position:fixed;
+bottom:0;
+width:100%;
+background:white;
+border-radius:20px 20px 0 0;
+padding:20px;
 }
 
 .hidden { display:none; }
 
-.picker {
-    height:120px;
-    overflow:auto;
-    text-align:center;
-}
-
-button {
-    padding:10px;
-    margin-top:10px;
-    width:100%;
-}
 </style>
 </head>
 
 <body>
 
-<header>
-    <div>Hola, Diego 👋</div>
-</header>
+<!-- INICIO -->
+<div id="inicio" class="page active">
 
 <div class="card">
-    <h3>Adherencia semanal</h3>
-    <div id="adherence">0%</div>
-</div>
-
-<div class="card">
-    <h3>Peso</h3>
-    <div id="weight">--</div>
-    <button onclick="sergei.openWeightModal()">+ Peso</button>
+<div id="today"></div>
+<h2>Hola, Diego 👋</h2>
 </div>
 
 <div class="card">
-    <h3>Plan semanal</h3>
-    <div id="plan"></div>
+<div>ADHERENCIA</div>
+<h1 id="adherence">0%</h1>
 </div>
 
 <div class="card">
-    <button onclick="sergei.exportCSV()">Export CSV</button>
+<div>PESO</div>
+<h2 id="weight">--</h2>
+<button onclick="app.openWeight()">+ Peso</button>
 </div>
 
-<!-- MODAL -->
-<div id="weight-modal" class="modal hidden">
-    <div id="kg"></div>
-    <div id="dec"></div>
-    <button onclick="sergei.saveWeight()">Guardar</button>
+<div class="card">
+<div>ÚLTIMOS ENTRENAMIENTOS</div>
+<div id="lastSessions"></div>
 </div>
+
+</div>
+
+<!-- PLAN -->
+<div id="plan" class="page">
+
+<div class="card">
+<h3>PLAN SEMANAL</h3>
+<div id="planList"></div>
+</div>
+
+</div>
+
+<!-- PROGRESO -->
+<div id="progreso" class="page">
+
+<div class="card">
+<h3>PESO</h3>
+<div id="weightHistory"></div>
+</div>
+
+</div>
+
+<!-- ENTRENAMIENTO -->
+<div id="entreno" class="page">
+
+<div class="card">
+<h3>Registrar</h3>
+<input id="km" placeholder="km">
+<input id="time" placeholder="min">
+<button onclick="app.saveSession()">Guardar</button>
+</div>
+
+</div>
+
+<!-- NAV -->
+<nav>
+<button onclick="app.go('inicio')">Inicio</button>
+<button onclick="app.go('plan')">Plan</button>
+<button onclick="app.go('progreso')">Progreso</button>
+<button onclick="app.go('entreno')">Entreno</button>
+</nav>
 
 <script>
-const USE_FIREBASE = false;
-
-const sergei = {
+const app = {
 
 db: {
-    weights: JSON.parse(localStorage.getItem("weights")) || [],
-    sessions: JSON.parse(localStorage.getItem("sessions")) || [],
-    plans: JSON.parse(localStorage.getItem("plans")) || []
+weights: JSON.parse(localStorage.getItem("w"))||[],
+sessions: JSON.parse(localStorage.getItem("s"))||[],
+plans: JSON.parse(localStorage.getItem("p"))||[]
 },
 
-init() {
-    this.ensureWeek();
-    this.render();
+init(){
+this.setToday();
+this.ensurePlan();
+this.render();
 },
 
-/* ===== PLAN ===== */
-getWeekId() {
-    const d = new Date();
-    return d.getFullYear() + "-W" + Math.ceil(d.getDate()/7);
+go(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
 },
 
-ensureWeek() {
-    const id = this.getWeekId();
-    let week = this.db.plans.find(p => p.id === id);
-
-    if (!week) {
-        week = {
-            id,
-            days: [
-                {day:"Lunes", planned:true, km:5},
-                {day:"Martes", planned:true, km:3},
-                {day:"Miércoles", planned:false},
-                {day:"Jueves", planned:true, km:7},
-                {day:"Viernes", planned:false},
-                {day:"Sábado", planned:true, km:5},
-                {day:"Domingo", planned:true, km:10}
-            ]
-        };
-        this.db.plans.push(week);
-        this.save();
-    }
+setToday(){
+document.getElementById("today").innerText =
+new Date().toLocaleDateString("es-CL",{weekday:"long", day:"numeric", month:"long"});
 },
 
-renderPlan() {
-    const container = document.getElementById("plan");
-    container.innerHTML = "";
+/* PLAN */
+ensurePlan(){
+if(this.db.plans.length) return;
 
-    const week = this.db.plans[0];
+this.db.plans.push({
+days:[
+{day:"Lunes",planned:true,km:5},
+{day:"Martes",planned:true,km:3},
+{day:"Miércoles",planned:false},
+{day:"Jueves",planned:true,km:7},
+{day:"Viernes",planned:false},
+{day:"Sábado",planned:true,km:5},
+{day:"Domingo",planned:true,km:10}
+]
+});
 
-    week.days.forEach(d => {
-        if (!d.planned) return;
-
-        const el = document.createElement("div");
-        el.className = "plan-card";
-
-        const session = this.db.sessions.find(s => s.day === d.day);
-        let diff = "";
-
-        if (session) {
-            const dif = session.km - d.km;
-            diff = `<div class="plan-diff ${dif>=0?'pos':'neg'}">${dif} km</div>`;
-        }
-
-        el.innerHTML = `
-            <div class="plan-day">${d.day}</div>
-            <div class="plan-km">${d.km}</div>
-            <div class="plan-status">${session ? "✔" : "○"}</div>
-            ${diff}
-        `;
-
-        container.appendChild(el);
-    });
+this.save();
 },
 
-/* ===== PESO ===== */
-openWeightModal() {
-    document.getElementById("weight-modal").classList.remove("hidden");
+renderPlan(){
+const el = document.getElementById("planList");
+el.innerHTML="";
+
+this.db.plans[0].days.forEach(d=>{
+if(!d.planned) return;
+
+let done = this.db.sessions.find(s=>s.day===d.day);
+
+el.innerHTML+=`
+<div class="plan-card">
+<div class="plan-day">${d.day}</div>
+<div class="plan-km">${d.km}</div>
+<div>${done?"✔":"○"}</div>
+</div>`;
+});
 },
 
-saveWeight() {
-    const val = prompt("Peso:");
-    if (!val) return;
+/* PESO */
+openWeight(){
+let val = prompt("Peso:");
+if(!val) return;
 
-    this.db.weights.push({
-        date:new Date().toISOString(),
-        val:parseFloat(val)
-    });
-
-    this.save();
-    this.render();
+this.db.weights.push({val:parseFloat(val),date:new Date()});
+this.save();
+this.render();
 },
 
-/* ===== ADHERENCIA ===== */
-getAdherence() {
-    const week = this.db.plans[0];
+/* SESIONES */
+saveSession(){
+let km = document.getElementById("km").value;
+let time = document.getElementById("time").value;
 
-    const planned = week.days.filter(d=>d.planned).length;
-    const done = this.db.sessions.length;
+this.db.sessions.push({
+km:parseFloat(km),
+time:parseFloat(time),
+date:new Date(),
+day:new Date().toLocaleDateString("es-CL",{weekday:"long"})
+});
 
-    return Math.round((done/planned)*100);
+this.save();
+this.render();
 },
 
-/* ===== EXPORT ===== */
-exportCSV() {
-    let csv = "TIPO,FECHA,KM\n";
-
-    this.db.sessions.forEach(s=>{
-        csv += `RUN,${s.date},${s.km}\n`;
-    });
-
-    csv += "\nPESO\n";
-
-    this.db.weights.forEach(w=>{
-        csv += `${w.date},${w.val}\n`;
-    });
-
-    navigator.clipboard.writeText(csv);
-    alert("copiado");
+/* KPIs */
+adherence(){
+let plan = this.db.plans[0].days.filter(d=>d.planned).length;
+let done = this.db.sessions.length;
+return Math.round(done/plan*100);
 },
 
-save() {
-    localStorage.setItem("weights", JSON.stringify(this.db.weights));
-    localStorage.setItem("sessions", JSON.stringify(this.db.sessions));
-    localStorage.setItem("plans", JSON.stringify(this.db.plans));
+/* RENDER */
+render(){
+
+document.getElementById("weight").innerText =
+this.db.weights.length ? this.db.weights.slice(-1)[0].val+" kg" : "--";
+
+document.getElementById("adherence").innerText =
+this.adherence()+"%";
+
+this.renderPlan();
+
 },
 
-render() {
-    document.getElementById("weight").innerText =
-        this.db.weights.length ? this.db.weights.slice(-1)[0].val : "--";
-
-    document.getElementById("adherence").innerText =
-        this.getAdherence() + "%";
-
-    this.renderPlan();
+save(){
+localStorage.setItem("w",JSON.stringify(this.db.weights));
+localStorage.setItem("s",JSON.stringify(this.db.sessions));
+localStorage.setItem("p",JSON.stringify(this.db.plans));
 }
 
 };
 
-window.onload = () => sergei.init();
+window.onload=()=>app.init();
 </script>
 
 </body>
