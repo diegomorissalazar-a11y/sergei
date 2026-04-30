@@ -208,24 +208,77 @@ const app = {
     document.getElementById("modal").innerHTML = `
       <div class="modal-box">
         <div class="modal-title">Actualizar peso</div>
-        <input id="weight-current" type="number" step="0.1" value="${current}" placeholder="Peso actual">
-        <input id="weight-goal" type="number" step="0.1" value="${goal}" placeholder="Peso objetivo">
-        <button class="btn" onclick="app.saveWeight()">Guardar</button>
-        <button class="btn" style="background:#8E8E93" onclick="app.closeModal()">Cancelar</button>
+        <div class="modal-subtitle">Usa las ruedas para evitar escribir puntos o comas.</div>
+
+        <div class="weight-picker-block">
+          <div class="weight-picker-label">Peso actual</div>
+          <div class="weight-picker">
+            <div class="wheel" id="currentKgWheel"></div>
+            <div class="wheel-unit">.</div>
+            <div class="wheel" id="currentDecWheel"></div>
+            <div class="wheel-unit">kg</div>
+          </div>
+        </div>
+
+        <div class="weight-picker-block">
+          <div class="weight-picker-label">Peso objetivo</div>
+          <div class="weight-picker">
+            <div class="wheel" id="goalKgWheel"></div>
+            <div class="wheel-unit">.</div>
+            <div class="wheel" id="goalDecWheel"></div>
+            <div class="wheel-unit">kg</div>
+          </div>
+        </div>
+
+        <button class="btn" onclick="app.saveWeightFromWheels()">Guardar peso</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `;
+
+    this.buildWeightWheel("currentKgWheel", 80, 150, Math.floor(current));
+    this.buildWeightWheel("currentDecWheel", 0, 9, Math.round((current - Math.floor(current)) * 10));
+    this.buildWeightWheel("goalKgWheel", 80, 150, Math.floor(goal));
+    this.buildWeightWheel("goalDecWheel", 0, 9, Math.round((goal - Math.floor(goal)) * 10));
   },
 
-  saveWeight(){
-    const current = Number(document.getElementById("weight-current").value);
-    const goal = Number(document.getElementById("weight-goal").value);
+  buildWeightWheel(id, min, max, selected){
+    const el = document.getElementById(id);
+    el.innerHTML = "";
 
-    if(current){
-      if(!this.db.startWeight) this.db.startWeight = current;
-      this.db.weights.push({value:current,date:new Date().toISOString()});
+    for(let i=min; i<=max; i++){
+      const item = document.createElement("div");
+      item.className = "wheel-item";
+      item.textContent = i;
+      el.appendChild(item);
     }
 
-    if(goal) this.db.goalWeight = goal;
+    setTimeout(()=>{
+      el.scrollTop = (selected - min) * 42;
+    }, 30);
+  },
+
+  getWheelValue(id, min){
+    const el = document.getElementById(id);
+    return min + Math.round(el.scrollTop / 42);
+  },
+
+  saveWeightFromWheels(){
+    const currentKg = this.getWheelValue("currentKgWheel",80);
+    const currentDec = this.getWheelValue("currentDecWheel",0);
+    const goalKg = this.getWheelValue("goalKgWheel",80);
+    const goalDec = this.getWheelValue("goalDecWheel",0);
+
+    const current = Number(`${currentKg}.${currentDec}`);
+    const goal = Number(`${goalKg}.${goalDec}`);
+
+    if(!this.db.startWeight) this.db.startWeight = current;
+
+    this.db.weights.push({
+      value:current,
+      date:new Date().toISOString()
+    });
+
+    this.db.goalWeight = goal;
 
     this.save();
     this.closeModal();
