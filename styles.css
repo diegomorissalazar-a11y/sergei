@@ -2,21 +2,13 @@
 --bg:#F8FAFB;
 --primary:#1E3A52;
 --accent:#6ECFBA;
---blue:#4A7FA5;
+--blue:#2563EB;
 --gray:#8A9BB0;
 }
 
-body{
-margin:0;
-font-family:system-ui;
-background:var(--bg);
-}
+body{margin:0;font-family:system-ui;background:var(--bg);}
 
-.page{
-display:none;
-padding:16px;
-padding-bottom:90px;
-}
+.page{display:none;padding:16px;padding-bottom:90px;}
 .page.active{display:block;}
 
 .card{
@@ -35,25 +27,48 @@ display:flex;
 background:white;
 border-top:1px solid #eee;
 }
+nav button{flex:1;padding:12px;border:none;background:none;}
 
-nav button{
-flex:1;
-padding:12px;
-border:none;
-background:none;
+h1{font-size:28px;margin:0;}
+.label{font-size:12px;color:var(--accent);text-transform:uppercase;}
+.title{font-size:18px;font-weight:bold;}
+
+.progress{height:6px;background:#eee;border-radius:4px;margin-top:10px;}
+.progress div{height:6px;background:var(--blue);}
+
+.stats{
+display:flex;
+justify-content:space-between;
+text-align:center;
+}
+.stats b{font-size:28px;}
+
+.weight-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
 }
 
-.plan-card{
-border:1px solid #eee;
+.run-card{
+background:#F8FAFB;
 border-radius:12px;
 padding:12px;
-margin-bottom:10px;
+margin-top:10px;
+text-align:center;
+}
+.run-card .km{font-size:48px;font-weight:bold;color:var(--primary);}
+.run-card .day{font-size:12px;color:var(--accent);text-transform:uppercase;}
+
+.plan-container{display:flex;gap:12px;}
+.plan-source,.plan-drop{
+flex:1;background:white;border:1px solid #eee;border-radius:12px;padding:10px;
 }
 
-.plan-km{
-font-size:48px;
-font-weight:bold;
-color:var(--primary);
+.draggable{padding:10px;background:#F8FAFB;margin-bottom:8px;border-radius:8px;cursor:grab;}
+
+.plan-item{
+display:flex;align-items:center;gap:8px;margin-bottom:8px;
+background:#F8FAFB;padding:8px;border-radius:8px;
 }
 
 .modal{
@@ -61,23 +76,9 @@ position:fixed;
 bottom:0;
 width:100%;
 background:white;
-border-radius:20px 20px 0 0;
 padding:20px;
+border-radius:20px 20px 0 0;
 }
-
 .hidden{display:none;}
 
-.wheel{
-height:140px;
-overflow-y:scroll;
-border:1px solid #ddd;
-border-radius:10px;
-scroll-snap-type:y mandatory;
-}
-
-.wheel div{
-height:40px;
-text-align:center;
-line-height:40px;
-scroll-snap-align:center;
-}
+.blue{background:var(--blue);color:white;}
