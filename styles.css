@@ -579,3 +579,16 @@ input,select{
   background:var(--mint);
   border-radius:0 0 4px 4px;
 }
+.logo-wrap{
+  display:flex;
+  align-items:center;
+  min-height:44px;
+}
+
+.logo-image{
+  display:block;
+  width:245px;
+  max-width:68vw;
+  height:auto;
+  object-fit:contain;
+}
