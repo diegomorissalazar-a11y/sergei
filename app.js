@@ -14,11 +14,17 @@ this.renderAll();
 },
 
 go(id, el){
-document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+
+document.querySelectorAll(".page")
+.forEach(p=>p.classList.remove("active"));
+
 document.getElementById(id).classList.add("active");
 
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+document.querySelectorAll(".tab")
+.forEach(t=>t.classList.remove("active"));
+
 if(el) el.classList.add("active");
+
 },
 
 renderAll(){
@@ -27,10 +33,19 @@ this.renderPlan();
 this.renderEntreno();
 },
 
-// DASHBOARD
+/* ================= DASHBOARD ================= */
+
 renderInicio(){
 
 const weight=this.getLastWeight();
+
+const sesiones=this.db.sessions.length;
+
+const plan=this.db.plans[0]?.days?.length||0;
+
+const adherence=plan?Math.round((sesiones/plan)*100):0;
+
+const km=this.db.sessions.reduce((a,s)=>a+(parseFloat(s.km)||0),0);
 
 document.getElementById("inicio").innerHTML=`
 
@@ -40,13 +55,21 @@ document.getElementById("inicio").innerHTML=`
 </div>
 
 <div class="stats">
-<div><b>${this.db.sessions.length}</b><span>Total</span></div>
-<div><b>${this.db.plans[0]?.days?.length||0}</b><span>Plan</span></div>
-<div><b>${this.getAdherence()}%</b><span>Adherencia</span></div>
+<div><b>${sesiones}</b><div>Semana</div></div>
+<div><b>${this.calculateStreak()}</b><div>Racha</div></div>
+<div><b>${this.db.sessions.length}</b><div>Total</div></div>
 </div>
 
-<div class="card blue">
-<div>KM: ${this.getKMComparison().real}</div>
+<div class="card">
+<div class="label">Plan activo</div>
+<div class="progress">
+<div style="width:${adherence}%"></div>
+</div>
+</div>
+
+<div class="card">
+<div class="label">KM semana</div>
+<h2>${km}</h2>
 </div>
 
 <div class="card">
@@ -56,20 +79,33 @@ document.getElementById("inicio").innerHTML=`
 </div>
 
 <div class="card">
-${this.db.sessions.slice(-3).map(s=>`
-<div class="run-card">
-<div class="day">${new Date(s.date).toLocaleDateString("es-CL",{weekday:"long"})}</div>
-<div class="km">${s.km||"-"}</div>
+${this.renderRuns()}
 </div>
-`).join("")}
-</div>
+
 `;
+
 },
 
-// PLAN
+renderRuns(){
+
+return this.db.sessions.slice(-4).reverse().map(s=>`
+
+<div class="run-card-pro">
+<div class="day">${new Date(s.date).toLocaleDateString("es-CL",{weekday:"long"})}</div>
+<div class="km">${s.km||"-"}</div>
+<div class="pace">${s.time||"-"} min</div>
+</div>
+
+`).join("");
+
+},
+
+/* ================= PLAN ================= */
+
 renderPlan(){
 
 const days=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
 const planned=this.db.plans[0]?.days||[];
 
 document.getElementById("plan").innerHTML=`
@@ -79,31 +115,47 @@ document.getElementById("plan").innerHTML=`
 <div class="plan-container">
 
 <div class="plan-source">
-${days.map(d=>`<div class="draggable" draggable="true" ondragstart="app.drag(event)" data-day="${d}">${d}</div>`).join("")}
+${days.map(d=>`
+<div class="draggable" draggable="true"
+ondragstart="app.drag(event)"
+data-day="${d}">${d}</div>
+`).join("")}
 </div>
 
-<div class="plan-drop" ondrop="app.drop(event)" ondragover="app.allowDrop(event)">
+<div class="plan-drop"
+ondrop="app.drop(event)"
+ondragover="app.allowDrop(event)">
+
 ${planned.map((d,i)=>`
 <div class="plan-item">
 ${d.day}
-<input value="${d.km||""}" onchange="app.updateKM(${i},this.value)">
+<input value="${d.km||""}"
+onchange="app.updateKM(${i},this.value)">
 <button onclick="app.removeDay(${i})">✕</button>
-</div>`).join("")}
+</div>
+`).join("")}
+
+</div>
+
 </div>
 
 </div>
 
-<button onclick="app.save()">Guardar</button>
-
-</div>
 `;
+
 },
 
-drag(ev){ev.dataTransfer.setData("day", ev.target.dataset.day);},
-allowDrop(ev){ev.preventDefault();},
+drag(ev){
+ev.dataTransfer.setData("day",ev.target.dataset.day);
+},
+
+allowDrop(ev){
+ev.preventDefault();
+},
 
 drop(ev){
 ev.preventDefault();
+
 const day=ev.dataTransfer.getData("day");
 
 if(!this.db.plans.length) this.db.plans=[{days:[]}];
@@ -111,23 +163,26 @@ if(!this.db.plans.length) this.db.plans=[{days:[]}];
 if(this.db.plans[0].days.find(d=>d.day===day)) return;
 
 this.db.plans[0].days.push({day,km:null});
+
 this.renderPlan();
 },
 
-updateKM(i,v){this.db.plans[0].days[i].km=parseFloat(v);},
-removeDay(i){this.db.plans[0].days.splice(i,1);this.renderPlan();},
+updateKM(i,v){
+this.db.plans[0].days[i].km=parseFloat(v);
+},
 
-// ENTRENAMIENTO
+removeDay(i){
+this.db.plans[0].days.splice(i,1);
+this.renderPlan();
+},
+
+/* ================= ENTRENAMIENTO ================= */
+
 renderEntreno(){
 
 document.getElementById("entrenamiento").innerHTML=`
 
 <div class="card">
-
-<select id="type">
-<option value="run">Carrera</option>
-<option value="gym">Fuerza</option>
-</select>
 
 <input id="km" placeholder="km">
 <input id="time" placeholder="min">
@@ -135,7 +190,9 @@ document.getElementById("entrenamiento").innerHTML=`
 <button onclick="app.saveTraining()">Guardar</button>
 
 </div>
+
 `;
+
 },
 
 saveTraining(){
@@ -151,44 +208,31 @@ this.renderAll();
 
 },
 
-// PESO
+/* ================= PESO ================= */
+
 openWeight(){
-document.getElementById("weightModal").classList.remove("hidden");
-document.getElementById("weightModal").innerHTML=`
-<input id="wcur" placeholder="Peso actual">
-<input id="wgoal" placeholder="Peso objetivo">
-<button onclick="app.saveWeight()">Guardar</button>
-`;
-},
+const w=prompt("Peso actual");
+const g=prompt("Peso objetivo");
 
-saveWeight(){
-const c=parseFloat(document.getElementById("wcur").value);
-const g=parseFloat(document.getElementById("wgoal").value);
-
-if(c) this.db.weights.push({val:c,date:new Date()});
-if(g) this.db.goalWeight=g;
+if(w) this.db.weights.push({val:parseFloat(w)});
+if(g) this.db.goalWeight=parseFloat(g);
 
 this.save();
 this.renderAll();
 },
 
-// MÉTRICAS
 getLastWeight(){
-return this.db.weights.length?this.db.weights.slice(-1)[0].val:null;
+return this.db.weights.slice(-1)[0]?.val;
 },
 
-getAdherence(){
-const plan=this.db.plans[0]?.days?.length||0;
-const done=this.db.sessions.length;
-return plan?Math.round((done/plan)*100):0;
+/* ================= MÉTRICAS ================= */
+
+calculateStreak(){
+return this.db.sessions.length>0?1:0;
 },
 
-getKMComparison(){
-const real=this.db.sessions.reduce((a,s)=>a+(parseFloat(s.km)||0),0);
-return {real};
-},
+/* ================= STORAGE ================= */
 
-// STORAGE
 load(){
 this.db=JSON.parse(localStorage.getItem("db"))||this.db;
 },
