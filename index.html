@@ -8,36 +8,24 @@
 <link rel="stylesheet" href="styles.css">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 
 <body>
 
 <div id="app">
-
-<!-- INICIO -->
 <section id="inicio" class="page active"></section>
-
-<!-- PLAN -->
 <section id="plan" class="page"></section>
-
-<!-- PROGRESO -->
 <section id="progreso" class="page"></section>
-
-<!-- ENTRENO -->
-<section id="entreno" class="page"></section>
-
+<section id="entrenamiento" class="page"></section>
 </div>
 
-<!-- MODAL PESO -->
 <div id="weightModal" class="modal hidden"></div>
 
 <nav>
 <button onclick="app.go('inicio')">Inicio</button>
 <button onclick="app.go('plan')">Plan</button>
 <button onclick="app.go('progreso')">Progreso</button>
-<button onclick="app.go('entreno')">Entreno</button>
+<button onclick="app.go('entrenamiento')">Entrenamiento</button>
 </nav>
 
 <script src="app.js"></script>
