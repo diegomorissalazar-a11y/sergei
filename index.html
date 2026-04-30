@@ -5,120 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SERGEI RUN</title>
 
-<!-- CHART -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="styles.css">
 
-<!-- FIREBASE -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<style>
-:root{
---bg:#F8FAFB;
---primary:#1E3A52;
---accent:#6ECFBA;
---blue:#4A7FA5;
-}
-
-body{margin:0;font-family:system-ui;background:var(--bg);}
-
-.page{display:none;padding:16px;padding-bottom:80px;}
-.page.active{display:block;}
-
-.card{
-background:white;
-padding:16px;
-border-radius:14px;
-margin-bottom:16px;
-box-shadow:0 2px 6px rgba(0,0,0,0.05);
-}
-
-nav{
-position:fixed;bottom:0;width:100%;display:flex;background:white;border-top:1px solid #eee;
-}
-nav button{flex:1;padding:12px;border:none;background:none;}
-
-.plan-card{border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;}
-
-.wheel{height:120px;overflow-y:scroll;border:1px solid #ddd;border-radius:10px;}
-.wheel div{height:40px;text-align:center;line-height:40px;}
-
-.modal{position:fixed;bottom:0;width:100%;background:white;padding:20px;border-radius:20px 20px 0 0;}
-.hidden{display:none;}
-</style>
 </head>
 
 <body>
 
+<div id="app">
+
 <!-- INICIO -->
-<div id="inicio" class="page active">
-
-<div class="card">
-<div id="today"></div>
-<h2>Hola, Diego 👋</h2>
-</div>
-
-<div class="card">
-PLAN ACTIVO
-<div id="planProgressBar" style="height:6px;background:#eee;">
-<div id="planProgress" style="height:6px;background:#2563EB;width:0%;"></div>
-</div>
-</div>
-
-<div class="card" style="display:flex;justify-content:space-between;text-align:center;">
-<div><b id="statWeek">0</b><br><small>SEMANA</small></div>
-<div><b id="statStreak">0</b><br><small>RACHA</small></div>
-<div><b id="statTotal">0</b><br><small>TOTAL</small></div>
-</div>
-
-<div class="card">
-PESO
-<div id="weightNow">--</div>
-<button onclick="app.openWeight()">+ Peso</button>
-<div style="height:6px;background:#eee;margin-top:10px;">
-<div id="weightBar" style="height:6px;background:#2563EB;width:0%;"></div>
-</div>
-</div>
-
-<div class="card">
-ÚLTIMOS ENTRENAMIENTOS
-<div id="lastSessions"></div>
-</div>
-
-</div>
+<section id="inicio" class="page active"></section>
 
 <!-- PLAN -->
-<div id="plan" class="page">
-<div class="card"><h3>Plan semanal</h3><div id="planList"></div></div>
-</div>
+<section id="plan" class="page"></section>
 
 <!-- PROGRESO -->
-<div id="progreso" class="page">
-<div class="card"><canvas id="chartWeight"></canvas></div>
-<div class="card"><canvas id="chartKM"></canvas></div>
-<div class="card"><canvas id="chartPace"></canvas></div>
-</div>
+<section id="progreso" class="page"></section>
 
 <!-- ENTRENO -->
-<div id="entreno" class="page">
-<div class="card">
-<input id="km" placeholder="km">
-<input id="time" placeholder="min">
-<button onclick="app.saveSession()">Guardar</button>
-</div>
+<section id="entreno" class="page"></section>
+
 </div>
 
 <!-- MODAL PESO -->
-<div id="weightModal" class="modal hidden">
-<div style="display:flex;gap:20px;">
-<div id="kgWheel" class="wheel"></div>
-<div id="decWheel" class="wheel"></div>
-</div>
-<button onclick="app.confirmWeight()">Guardar</button>
-<button onclick="app.closeWeight()">Cancelar</button>
-</div>
+<div id="weightModal" class="modal hidden"></div>
 
-<!-- NAV -->
 <nav>
 <button onclick="app.go('inicio')">Inicio</button>
 <button onclick="app.go('plan')">Plan</button>
@@ -126,179 +40,7 @@ PESO
 <button onclick="app.go('entreno')">Entreno</button>
 </nav>
 
-<script>
-
-// ===== FIREBASE CONFIG =====
-const USE_FIREBASE = false;
-
-const firebaseConfig = {
-apiKey:"TU_API_KEY",
-projectId:"TU_PROJECT"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// ===== APP =====
-const app = {
-
-db:{weights:[],sessions:[],plans:[]},
-charts:{},
-
-async init(){
-if(USE_FIREBASE) await this.loadCloud(); else this.loadLocal();
-this.ensurePlan();
-this.setToday();
-this.render();
-},
-
-go(id){
-document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-document.getElementById(id).classList.add("active");
-if(id==="progreso") setTimeout(()=>this.renderCharts(),100);
-},
-
-setToday(){
-document.getElementById("today").innerText=new Date().toLocaleDateString("es-CL");
-},
-
-ensurePlan(){
-if(this.db.plans.length) return;
-this.db.plans=[{days:[
-{day:"Lunes",planned:true,km:5},
-{day:"Martes",planned:true,km:3},
-{day:"Jueves",planned:true,km:7},
-{day:"Sábado",planned:true,km:5},
-{day:"Domingo",planned:true,km:10}
-]}];
-},
-
-render(){
-this.renderDashboard();
-this.renderPlan();
-},
-
-renderDashboard(){
-
-const week=this.sessionsThisWeek();
-const total=this.db.sessions.length;
-
-document.getElementById("statWeek").innerText=week;
-document.getElementById("statTotal").innerText=total;
-
-document.getElementById("weightNow").innerText=
-this.db.weights.length?this.db.weights.slice(-1)[0].val+" kg":"--";
-
-const container=document.getElementById("lastSessions");
-container.innerHTML="";
-
-this.db.sessions.slice(-5).forEach(s=>{
-container.innerHTML+=`<div>${s.km} km</div>`;
-});
-
-},
-
-renderPlan(){
-const el=document.getElementById("planList");
-el.innerHTML="";
-this.db.plans[0].days.forEach(d=>{
-el.innerHTML+=`<div class="plan-card">${d.day} - ${d.km} km</div>`;
-});
-},
-
-sessionsThisWeek(){
-return this.db.sessions.length;
-},
-
-saveSession(){
-let km=parseFloat(document.getElementById("km").value);
-let time=parseFloat(document.getElementById("time").value);
-
-this.db.sessions.push({km,time,date:new Date()});
-this.save();
-this.render();
-},
-
-// ===== PESO =====
-openWeight(){
-document.getElementById("weightModal").classList.remove("hidden");
-this.buildWheels();
-},
-
-closeWeight(){
-document.getElementById("weightModal").classList.add("hidden");
-},
-
-buildWheels(){
-let kg=document.getElementById("kgWheel");
-let dec=document.getElementById("decWheel");
-kg.innerHTML="";dec.innerHTML="";
-for(let i=80;i<=150;i++)kg.innerHTML+=`<div>${i}</div>`;
-for(let i=0;i<=9;i++)dec.innerHTML+=`<div>.${i}</div>`;
-},
-
-confirmWeight(){
-let kg=Math.round(document.getElementById("kgWheel").scrollTop/40)+80;
-let dec=Math.round(document.getElementById("decWheel").scrollTop/40);
-let val=parseFloat(`${kg}.${dec}`);
-this.db.weights.push({val,date:new Date()});
-this.save();
-this.render();
-this.closeWeight();
-},
-
-// ===== CHARTS =====
-renderCharts(){
-this.renderWeightChart();
-},
-
-renderWeightChart(){
-const ctx=document.getElementById("chartWeight");
-const data=this.db.weights.map(w=>({x:new Date(w.date),y:w.val}));
-
-if(this.charts.w) this.charts.w.destroy();
-
-this.charts.w=new Chart(ctx,{type:"line",data:{datasets:[{data}]}});
-},
-
-// ===== STORAGE =====
-async loadCloud(){
-const doc=await db.collection("sergei").doc("user_main").get();
-if(doc.exists) this.db=doc.data();
-},
-
-async saveCloud(){
-await db.collection("sergei").doc("user_main").set(this.db);
-},
-
-loadLocal(){
-this.db={
-weights:JSON.parse(localStorage.getItem("w"))||[],
-sessions:JSON.parse(localStorage.getItem("s"))||[],
-plans:JSON.parse(localStorage.getItem("p"))||[]
-};
-},
-
-saveLocal(){
-localStorage.setItem("w",JSON.stringify(this.db.weights));
-localStorage.setItem("s",JSON.stringify(this.db.sessions));
-localStorage.setItem("p",JSON.stringify(this.db.plans));
-},
-
-save(){
-this.saveLocal();
-if(USE_FIREBASE) this.saveCloud();
-}
-
-};
-
-window.onload=()=>app.init();
-
-window.addEventListener("beforeunload",()=>{
-app.save();
-});
-
-</script>
+<script src="app.js"></script>
 
 </body>
 </html>
