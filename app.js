@@ -5,30 +5,33 @@ const app = {
       birthDate:"",
       height:""
     },
+
     nutrition:{
-      patientName:"Sergio Espinoza",
-      planWeight:113,
-      bodyFat:24.94,
-      goal:"Maratón STGO · Recomposición corporal · Rendimiento running",
-      base:{
-        calories:1898,
-        carbs:235,
-        fat:43,
-        protein:143
+      patientName:"Diego Moris Salazar",
+      period:"Marzo a mayo 2025",
+      goal:"Optimizar salud y reducir grasa corporal",
+      waterLiters:2.5,
+      waterGoal:10,
+      portions:{
+        cereals:3,
+        fruits:2,
+        leanMeats:12,
+        proteinDairy:2,
+        skimDairy:1,
+        fats:0.5,
+        oils:1,
+        vegetables:2
       },
-      trainingSingle:{
-        calories:1878,
-        carbs:222,
-        fat:42,
-        protein:153
-      },
-      trainingIntense:{
-        calories:2335,
-        carbs:265,
-        fat:71,
-        protein:153
-      }
+      recommendations:[
+        "Consumir 2,5 litros de agua y líquidos al día.",
+        "Comprar balanza de cocina para resolver dudas de gramajes.",
+        "Carnes se pesan en crudo.",
+        "Cereales se pesan en cocido, excepto papa.",
+        "1 scoop de proteína reemplaza a 2 porciones de carnes del día.",
+        "Usar 1 porción de aceites y grasas dentro del día."
+      ]
     },
+
     nutritionLogs:{},
     goalWeight:95,
     startWeight:null,
@@ -45,115 +48,156 @@ const app = {
   ideaFilter:"desayuno",
 
   meals:[
-    {key:"desayuno", label:"Desayuno", time:"08:00", icon:"☀️"},
-    {key:"colacionAM", label:"Colación AM", time:"10:30", icon:"🍎"},
-    {key:"almuerzo", label:"Almuerzo", time:"13:00", icon:"🍽️"},
-    {key:"colacionPM", label:"Colación PM", time:"16:00", icon:"🥛"},
-    {key:"preEntreno", label:"Pre-Entreno", time:"18:00", icon:"⚡"},
-    {key:"cena", label:"Cena", time:"20:30", icon:"🌙"}
+    {
+      key:"desayuno",
+      label:"Desayuno",
+      time:"08:00",
+      icon:"☀️",
+      target:"1 lácteo protein + 0,5 cereal + 3 carnes"
+    },
+    {
+      key:"colacionFruta",
+      label:"Colación fruta",
+      time:"10:30",
+      icon:"🍇",
+      target:"1 fruta"
+    },
+    {
+      key:"almuerzo",
+      label:"Almuerzo",
+      time:"13:30",
+      icon:"🍽️",
+      target:"4 carnes bajas en grasa + verduras generales + verduras libres"
+    },
+    {
+      key:"colacionProtein",
+      label:"Colación protein",
+      time:"16:30",
+      icon:"🥛",
+      target:"1 lácteo protein"
+    },
+    {
+      key:"preEntreno",
+      label:"Pre-entreno",
+      time:"18:00",
+      icon:"⚡",
+      target:"1 fruta + 1 lácteo descremado + 2 carnes / 1 scoop"
+    },
+    {
+      key:"cena",
+      label:"Cena",
+      time:"20:30",
+      icon:"🌙",
+      target:"2 cereales + 3 carnes + verduras + 0,5 lípidos"
+    }
   ],
 
   mealIdeas:{
     desayuno:[
       {
-        title:"Proteico clásico",
-        desc:"3 huevos + 1 pan molde + yogurt protein + 60g jamón pavo",
-        portions:"3 carnes + 0.5 cereal + 1 lácteo"
+        title:"Desayuno pauta base",
+        desc:"1 yogurt Soprole protein + 1 rebanada pan molde Cero Cero + 3 huevos grandes sin aceite + 60g jamón pechuga de pavo",
+        portions:"1 lácteo protein + 0,5 cereal + 3 carnes"
       },
       {
-        title:"Avena + proteína",
-        desc:"40g avena + yogurt protein + 2 huevos + 30g jamón",
-        portions:"0.5 cereal + 1 lácteo + 2 carnes"
+        title:"Desayuno práctico",
+        desc:"Yogurt protein + pan molde + huevos cocidos/revueltos sin aceite + jamón de pavo",
+        portions:"1 lácteo protein + cereal medido + carnes bajas en grasa"
       },
       {
-        title:"Sándwich proteico",
-        desc:"2 panes molde + 2 huevos + 60g pechuga pavo + yogurt",
-        portions:"1 cereal + 3 carnes + 1 lácteo"
+        title:"Desayuno rápido",
+        desc:"Yogurt protein + pan Cero Cero + huevos duros preparados desde antes",
+        portions:"estructura pauta desayuno"
       }
     ],
+
+    colacionFruta:[
+      {
+        title:"Arándanos",
+        desc:"120g de arándanos",
+        portions:"1 fruta"
+      },
+      {
+        title:"Fruta equivalente",
+        desc:"1 porción de fruta según tabla de equivalencias",
+        portions:"1 fruta"
+      },
+      {
+        title:"Fruta portable",
+        desc:"Fruta fácil de llevar: manzana, plátano chico, mandarina o berries medidos",
+        portions:"1 fruta"
+      }
+    ],
+
     almuerzo:[
       {
-        title:"Bowl pollo arroz",
-        desc:"100g pollo + ¾ taza arroz + verduras salteadas + fruta",
-        portions:"2 carnes + 1 cereal + verduras + fruta"
+        title:"Merluza + verduras",
+        desc:"320g merluza + ensalada de apio + tortilla de acelga",
+        portions:"4 carnes + verduras generales + verduras libres"
       },
       {
-        title:"Legumbres controladas",
-        desc:"100g legumbres + ensalada libre + proteína magra",
-        portions:"1 cereal/prote vegetal + verduras + carne baja G"
+        title:"Pollo + verduras",
+        desc:"Pechuga de pollo medida + verduras generales + verduras libres",
+        portions:"4 carnes bajas en grasa + verduras"
       },
       {
-        title:"Pescado + papas",
-        desc:"100g pescado + papa cocida/salteada + ensalada grande",
-        portions:"2 carnes + 1 cereal + verduras"
+        title:"Legumbres ajustadas",
+        desc:"1 porción de legumbres reemplaza 1 cereal + 1 carne. Usar equivalencia si comes Wasil/cajita.",
+        portions:"legumbres = cereal + carne"
       }
     ],
-    cena:[
-      {
-        title:"Cena liviana runner",
-        desc:"100g pollo/pavo + verduras + ¾ taza arroz o 1 fajita",
-        portions:"2 carnes + 1 cereal + verduras"
-      },
-      {
-        title:"Rollitos vietnamitas",
-        desc:"6 rollitos con papel de arroz, pollo/tofu y verduras",
-        portions:"cereal + carnes + verduras"
-      },
-      {
-        title:"Batido emergencia",
-        desc:"Proteína + fruta + avena si llegas muy tarde de entrenar",
-        portions:"batido + fruta + cereal"
-      }
-    ],
-    preEntreno:[
-      {
-        title:"Pre-entreno simple",
-        desc:"½ plátano + yogurt o leche protein",
-        portions:"fruta + lácteo"
-      },
-      {
-        title:"Energía controlada",
-        desc:"Pan molde + miel o mermelada + café",
-        portions:"cereal + azúcar"
-      },
-      {
-        title:"Avena rápida",
-        desc:"40g avena + leche protein + canela",
-        portions:"cereal + lácteo"
-      }
-    ],
-    colacion:[
+
+    colacionProtein:[
       {
         title:"Yogurt protein",
-        desc:"1 yogurt protein + fruta",
-        portions:"lácteo + fruta"
+        desc:"1 yogurt Soprole protein",
+        portions:"1 lácteo protein"
       },
       {
-        title:"Barra + café",
-        desc:"1 barra proteica + café/té",
-        portions:"batido/barrita"
+        title:"Protein simple",
+        desc:"Yogurt protein o lácteo alto en proteína equivalente",
+        portions:"1 lácteo protein"
       },
       {
-        title:"Panqueque proteico",
-        desc:"1 scoop proteína + huevo + avena + leche",
-        portions:"batido + carne + cereal"
+        title:"Colación lista",
+        desc:"Yogurt protein frío + café o infusión",
+        portions:"1 lácteo protein"
       }
     ],
-    pm:[
+
+    preEntreno:[
       {
-        title:"Snack dulce controlado",
-        desc:"2 rebanadas pan molde + mantequilla maní",
-        portions:"cereal + alim ricos en G"
+        title:"Pre-entreno pauta",
+        desc:"1 fruta + 200 ml leche descremada blanca + 1 scoop de proteína",
+        portions:"1 fruta + 1 lácteo descremado + 2 carnes"
       },
       {
-        title:"Leche alta proteína",
-        desc:"200cc leche alta en proteína + fruta",
-        portions:"lácteo + fruta"
+        title:"Pre-entreno simple",
+        desc:"Fruta + leche descremada + proteína en polvo",
+        portions:"1 fruta + 1 lácteo + 1 scoop"
       },
       {
-        title:"Pavo + yogurt",
-        desc:"3 rebanadas pavo + yogurt protein",
-        portions:"carnes + lácteo"
+        title:"Pre-entreno rápido",
+        desc:"Plátano o fruta equivalente + leche descremada + scoop",
+        portions:"energía rápida + proteína"
+      }
+    ],
+
+    cena:[
+      {
+        title:"Taco Vivo con pollo",
+        desc:"1 tortilla para tacos marca Vivo grande + 200g pechuga de pollo + lechuga + zanahoria + 50g palta",
+        portions:"2 cereales + 3 carnes + verduras + 0,5 lípidos"
+      },
+      {
+        title:"Choclo + atún",
+        desc:"130g choclo + 240g atún + lechuga + tomates cherry + 50g palta",
+        portions:"2 cereales + 3 carnes + verduras + 0,5 lípidos"
+      },
+      {
+        title:"Cena práctica",
+        desc:"Cereal medido + proteína baja en grasa + verduras libres + palta medida",
+        portions:"estructura pauta cena"
       }
     ]
   },
@@ -165,34 +209,76 @@ const app = {
   },
 
   ensureDataShape(){
-    if(!this.db.profile) this.db.profile = {userName:"Sergei", birthDate:"", height:""};
+    if(!this.db.profile){
+      this.db.profile = {userName:"Sergei", birthDate:"", height:""};
+    }
+
     if(!this.db.weights) this.db.weights = [];
     if(!this.db.sessions) this.db.sessions = [];
     if(!this.db.plans) this.db.plans = [];
     if(!this.db.nutritionLogs) this.db.nutritionLogs = {};
     if(!this.db.completedRaces) this.db.completedRaces = [];
 
-    if(!this.db.nutrition){
-      this.db.nutrition = {
-        patientName:"Sergio Espinoza",
-        planWeight:113,
-        bodyFat:24.94,
-        goal:"Maratón STGO · Recomposición corporal · Rendimiento running",
-        base:{calories:1898, carbs:235, fat:43, protein:143},
-        trainingSingle:{calories:1878, carbs:222, fat:42, protein:153},
-        trainingIntense:{calories:2335, carbs:265, fat:71, protein:153}
-      };
-    }
+    const defaultNutrition = {
+      patientName:"Diego Moris Salazar",
+      period:"Marzo a mayo 2025",
+      goal:"Optimizar salud y reducir grasa corporal",
+      waterLiters:2.5,
+      waterGoal:10,
+      portions:{
+        cereals:3,
+        fruits:2,
+        leanMeats:12,
+        proteinDairy:2,
+        skimDairy:1,
+        fats:0.5,
+        oils:1,
+        vegetables:2
+      },
+      recommendations:[
+        "Consumir 2,5 litros de agua y líquidos al día.",
+        "Comprar balanza de cocina para resolver dudas de gramajes.",
+        "Carnes se pesan en crudo.",
+        "Cereales se pesan en cocido, excepto papa.",
+        "1 scoop de proteína reemplaza a 2 porciones de carnes del día.",
+        "Usar 1 porción de aceites y grasas dentro del día."
+      ]
+    };
 
     this.db.nutrition = {
-      patientName:this.db.nutrition.patientName || "Sergio Espinoza",
-      planWeight:this.db.nutrition.planWeight || 113,
-      bodyFat:this.db.nutrition.bodyFat || 24.94,
-      goal:this.db.nutrition.goal || "Maratón STGO · Recomposición corporal · Rendimiento running",
-      base:{calories:1898, carbs:235, fat:43, protein:143, ...(this.db.nutrition.base || {})},
-      trainingSingle:{calories:1878, carbs:222, fat:42, protein:153, ...(this.db.nutrition.trainingSingle || {})},
-      trainingIntense:{calories:2335, carbs:265, fat:71, protein:153, ...(this.db.nutrition.trainingIntense || {})}
+      ...defaultNutrition,
+      ...(this.db.nutrition || {}),
+      portions:{
+        ...defaultNutrition.portions,
+        ...((this.db.nutrition && this.db.nutrition.portions) || {})
+      },
+      recommendations:
+        this.db.nutrition?.recommendations && this.db.nutrition.recommendations.length
+          ? this.db.nutrition.recommendations
+          : defaultNutrition.recommendations
     };
+
+    Object.keys(this.db.nutritionLogs).forEach(date=>{
+      const log = this.db.nutritionLogs[date];
+
+      if(!log.meals) log.meals = {};
+
+      const migratedMeals = {
+        desayuno:!!log.meals.desayuno,
+        colacionFruta:!!(log.meals.colacionFruta || log.meals.colacionAM),
+        almuerzo:!!log.meals.almuerzo,
+        colacionProtein:!!(log.meals.colacionProtein || log.meals.colacionPM),
+        preEntreno:!!log.meals.preEntreno,
+        cena:!!log.meals.cena
+      };
+
+      log.meals = migratedMeals;
+      log.waterGlasses = Number(log.waterGlasses || 0);
+      log.waterGoal = Number(log.waterGoal || this.db.nutrition.waterGoal || 10);
+      if(!log.offPlanMeals) log.offPlanMeals = [];
+      log.alcohol = Number(log.alcohol || 0);
+      if(!log.selectedIdeas) log.selectedIdeas = {};
+    });
   },
 
   save(){
@@ -201,14 +287,22 @@ const app = {
 
   load(){
     const saved = localStorage.getItem("sergei_pwa");
+
     if(saved){
       try{
         const parsed = JSON.parse(saved);
+
         this.db = {
           ...this.db,
           ...parsed,
-          profile:{...this.db.profile, ...(parsed.profile || {})},
-          nutrition:{...this.db.nutrition, ...(parsed.nutrition || {})}
+          profile:{
+            ...this.db.profile,
+            ...(parsed.profile || {})
+          },
+          nutrition:{
+            ...this.db.nutrition,
+            ...(parsed.nutrition || {})
+          }
         };
       }catch(e){
         console.error("Error leyendo localStorage", e);
@@ -296,6 +390,7 @@ const app = {
     const now = new Date();
     const day = now.getDay() || 7;
     const monday = new Date(now);
+
     monday.setDate(now.getDate() - day + 1);
     monday.setHours(0,0,0,0);
 
@@ -323,6 +418,7 @@ const app = {
       "sabado":6,
       "domingo":7
     };
+
     return map[String(dayName || "").toLowerCase()] || 0;
   },
 
@@ -398,7 +494,7 @@ const app = {
   weightProgress(){
     const current = this.lastWeight();
     const goal = this.db.goalWeight;
-    const start = this.db.startWeight || this.db.nutrition?.planWeight || current;
+    const start = this.db.startWeight || current;
 
     if(!current || !goal || !start || start === goal) return 0;
 
@@ -424,19 +520,23 @@ const app = {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
+
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
   },
 
   formatPace(totalSeconds, km){
     if(!totalSeconds || !km) return "";
+
     const paceSec = Math.round(Number(totalSeconds) / Number(km));
     const min = Math.floor(paceSec / 60);
     const sec = paceSec % 60;
+
     return `${min}'${String(sec).padStart(2,"0")}"/km`;
   },
 
   formatSpeed(totalSeconds, km){
     if(!totalSeconds || !km) return "";
+
     const hours = Number(totalSeconds) / 3600;
     return (Number(km) / hours).toFixed(2);
   },
@@ -477,9 +577,10 @@ const app = {
   renderInicio(){
     const current = this.lastWeight();
     const goal = this.db.goalWeight;
-    const nutritionWeight = this.db.nutrition?.planWeight || 113;
-    const lostFromStart = current ? (nutritionWeight - current).toFixed(1) : "0.0";
+    const startWeight = this.db.startWeight || current;
+    const lostFromStart = current && startWeight ? (startWeight - current).toFixed(1) : "0.0";
     const missing = current ? Math.max(0,current-goal).toFixed(1) : "0.0";
+
     const activePlan = this.activePlan();
     const dueDays = this.planDueDaysUntilToday();
     const doneDue = this.completedDuePlanDays();
@@ -552,7 +653,7 @@ const app = {
             <div class="progress"><div style="width:${this.weightProgress()}%"></div></div>
 
             <div class="weight-values">
-              <div><b class="green">-${lostFromStart}kg</b><br><small>Desde pauta</small></div>
+              <div><b class="green">${lostFromStart >= 0 ? "-" : "+"}${Math.abs(lostFromStart)}kg</b><br><small>Desde inicio</small></div>
               <div><b class="blue">${missing}kg</b><br><small>Faltan</small></div>
             </div>
           </div>
@@ -564,7 +665,7 @@ const app = {
           </div>
         </div>
 
-        <div class="sub" style="margin-top:12px;">Peso pauta nutricional: ${nutritionWeight} kg</div>
+        <div class="sub" style="margin-top:12px;">Peso inicial registrado: ${startWeight || "--"} kg</div>
       </section>
 
       ${this.renderRaceCard()}
@@ -635,6 +736,7 @@ const app = {
 
     return this.db.sessions.slice(-5).reverse().map((s)=>{
       const idx = this.db.sessions.indexOf(s);
+
       return `
         <section class="card train-card">
           <div class="train-icon">${s.type==="run" ? "⚡" : "💪"}</div>
@@ -1012,6 +1114,7 @@ const app = {
     const h = this.getGenericWheelValue(`${prefix}HourWheel`,0);
     const m = this.getGenericWheelValue(`${prefix}MinuteWheel`,0);
     const s = this.getGenericWheelValue(`${prefix}SecondWheel`,0);
+
     return (h * 3600) + (m * 60) + s;
   },
 
@@ -1089,6 +1192,7 @@ const app = {
 
     const isOn = check.classList.toggle("on");
     input.disabled = !isOn;
+
     if(isOn) input.focus();
     else input.value = "";
   },
@@ -1131,8 +1235,8 @@ const app = {
   renderProgress(){
     const data = this.getProgressData();
     const current = this.lastWeight();
-    const planWeight = this.db.nutrition?.planWeight || 113;
-    const fromPlan = current ? (planWeight - current).toFixed(1) : "--";
+    const start = this.db.startWeight || current;
+    const fromStart = current && start ? (start - current).toFixed(1) : "--";
 
     document.getElementById("progreso").innerHTML = `
       ${this.header()}
@@ -1151,8 +1255,8 @@ const app = {
           <div class="kpi-value">${current || "--"} kg</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Desde pauta</div>
-          <div class="kpi-value">${fromPlan} kg</div>
+          <div class="kpi-label">Desde inicio</div>
+          <div class="kpi-value">${fromStart} kg</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Mejor ritmo</div>
@@ -1224,18 +1328,23 @@ const app = {
 
   getRangeStartDate(){
     if(this.progressRange === "all") return null;
+
     const weeks = Number(this.progressRange || 4);
     const d = new Date();
+
     d.setDate(d.getDate() - weeks * 7);
     d.setHours(0,0,0,0);
+
     return d;
   },
 
   weekStart(date){
     const d = new Date(date);
     const day = d.getDay() || 7;
+
     d.setDate(d.getDate() - day + 1);
     d.setHours(0,0,0,0);
+
     return d;
   },
 
@@ -1246,9 +1355,11 @@ const app = {
 
   weeklyKmSeries(sessions){
     const map = {};
+
     sessions.forEach(s=>{
       const km = Number(s.km || 0);
       if(!km) return;
+
       const key = this.weekLabel(s.date);
       map[key] = (map[key] || 0) + km;
     });
@@ -1264,13 +1375,16 @@ const app = {
 
     sessions.forEach(s=>{
       if(!s.timeSeconds || !s.km) return;
+
       const key = this.weekLabel(s.date);
       if(!map[key]) map[key] = {seconds:0, km:0};
+
       map[key].seconds += Number(s.timeSeconds);
       map[key].km += Number(s.km);
     });
 
     const labels = Object.keys(map);
+
     const values = labels.map(k=>{
       const paceSec = map[k].seconds / map[k].km;
       return Number((paceSec / 60).toFixed(2));
@@ -1441,18 +1555,19 @@ const app = {
       this.db.nutritionLogs[dateKey] = {
         meals:{
           desayuno:false,
-          colacionAM:false,
+          colacionFruta:false,
           almuerzo:false,
-          colacionPM:false,
+          colacionProtein:false,
           preEntreno:false,
           cena:false
         },
         waterGlasses:0,
-        waterGoal:8,
+        waterGoal:this.db.nutrition?.waterGoal || 10,
         offPlanMeals:[],
         alcohol:0,
         selectedIdeas:{}
       };
+
       this.save();
     }
 
@@ -1461,14 +1576,16 @@ const app = {
 
   nutritionCompletedMeals(dateKey = this.dayKey()){
     const log = this.nutritionLog(dateKey);
-    return Object.values(log.meals || {}).filter(Boolean).length;
+    return this.meals.filter(meal => !!log.meals?.[meal.key]).length;
   },
 
   nutritionScore(dateKey = this.dayKey()){
     const log = this.nutritionLog(dateKey);
+
     const mealsScore = (this.nutritionCompletedMeals(dateKey) / this.meals.length) * 70;
-    const waterScore = Math.min(1, Number(log.waterGlasses || 0) / Number(log.waterGoal || 8)) * 20;
+    const waterScore = Math.min(1, Number(log.waterGlasses || 0) / Number(log.waterGoal || 10)) * 20;
     const penalty = (log.offPlanMeals?.length || 0) * 12 + Number(log.alcohol || 0) * 18;
+
     return Math.max(0, Math.min(100, Math.round(mealsScore + waterScore - penalty)));
   },
 
@@ -1484,43 +1601,53 @@ const app = {
 
   toggleMeal(key){
     const log = this.nutritionLog();
+
     log.meals[key] = !log.meals[key];
+
     this.save();
     this.renderNutricion();
   },
 
   changeWater(delta){
     const log = this.nutritionLog();
+
     log.waterGlasses = Math.max(0, Number(log.waterGlasses || 0) + delta);
+
     this.save();
     this.renderNutricion();
   },
 
   changeAlcohol(delta){
     const log = this.nutritionLog();
+
     log.alcohol = Math.max(0, Number(log.alcohol || 0) + delta);
+
     this.save();
     this.renderNutricion();
   },
 
   useIdeaToday(type, index){
-    const idea = this.mealIdeas[type][index];
+    const idea = this.mealIdeas[type]?.[index];
+    if(!idea) return;
+
     const log = this.nutritionLog();
 
     const map = {
       desayuno:"desayuno",
+      colacionFruta:"colacionFruta",
       almuerzo:"almuerzo",
-      cena:"cena",
+      colacionProtein:"colacionProtein",
       preEntreno:"preEntreno",
-      colacion:"colacionAM",
-      pm:"colacionPM"
+      cena:"cena"
     };
 
     const mealKey = map[type] || "desayuno";
+
     log.selectedIdeas[mealKey] = idea.title;
     log.meals[mealKey] = true;
 
     this.save();
+
     this.nutritionView = "registro";
     this.renderNutricion();
   },
@@ -1562,6 +1689,7 @@ const app = {
 
   saveOffPlanMeal(){
     const log = this.nutritionLog();
+
     const type = document.getElementById("off-type").value;
     const impact = document.getElementById("off-impact").value;
     const description = document.getElementById("off-desc").value.trim();
@@ -1587,7 +1715,9 @@ const app = {
 
   removeOffPlanMeal(id){
     const log = this.nutritionLog();
+
     log.offPlanMeals = log.offPlanMeals.filter(x => x.id !== id);
+
     this.save();
     this.renderNutricion();
   },
@@ -1622,12 +1752,11 @@ const app = {
     ];
 
     return `
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+      <div class="nutrition-tabs">
         ${tabs.map(t=>`
           <button
-            class="range-btn ${this.nutritionView === t.key ? "active" : ""}"
+            class="nutrition-tab ${this.nutritionView === t.key ? "active" : ""}"
             onclick="app.setNutritionView('${t.key}')"
-            style="padding:13px 8px;"
           >
             ${t.label}
           </button>
@@ -1659,47 +1788,26 @@ const app = {
       <section class="card">
         <div class="label">Menú sugerido · hoy</div>
         <div class="sub" style="margin-top:8px;line-height:1.7;">
-          D: Yogurt + pan + huevos<br>
-          A: Corvina/pollo + verduras + cereal medido<br>
-          C: Tortilla/wrap + proteína + verduras
+          D: Yogurt protein + pan Cero Cero + huevos + jamón pavo<br>
+          A: Merluza/pollo + verduras generales + verduras libres<br>
+          C: Tortilla Vivo o choclo + proteína + verduras + palta medida
         </div>
       </section>
 
-      <div style="display:grid;gap:10px;margin-bottom:14px;">
+      <div class="meal-list">
         ${this.meals.map(meal=>{
           const done = !!log.meals[meal.key];
           const idea = log.selectedIdeas?.[meal.key];
 
           return `
-            <button
-              onclick="app.toggleMeal('${meal.key}')"
-              style="
-                width:100%;
-                border:1px solid ${done ? "rgba(52,199,89,.45)" : "#E7EDF2"};
-                background:${done ? "#F3FFF7" : "#FFFFFF"};
-                border-radius:18px;
-                padding:14px 16px;
-                display:grid;
-                grid-template-columns:42px 1fr 42px;
-                align-items:center;
-                text-align:left;
-                gap:12px;
-              "
-            >
-              <div style="font-size:24px;">${meal.icon}</div>
+            <button class="meal-row ${done ? "done" : ""}" onclick="app.toggleMeal('${meal.key}')">
+              <div class="meal-icon">${meal.icon}</div>
               <div>
-                <div style="font-weight:950;color:#1E3A52;">${meal.label}</div>
-                <div style="font-size:12px;color:#8A9BB0;">${meal.time}${idea ? " · " + idea : ""}</div>
+                <div class="meal-name">${meal.label}</div>
+                <div class="meal-time">${meal.time}${idea ? " · " + idea : ""}</div>
+                <div class="meal-target">${meal.target}</div>
               </div>
-              <div style="
-                width:38px;height:38px;border-radius:50%;
-                border:2px solid ${done ? "#34C759" : "#D8E2EA"};
-                display:flex;align-items:center;justify-content:center;
-                color:${done ? "#34C759" : "#D8E2EA"};
-                font-weight:950;
-              ">
-                ${done ? "✓" : ""}
-              </div>
+              <div class="meal-check">${done ? "✓" : ""}</div>
             </button>
           `;
         }).join("")}
@@ -1709,14 +1817,15 @@ const app = {
         <div class="card-head">
           <div>
             <div class="label">Agua</div>
-            <div class="card-title">${log.waterGlasses || 0} / ${log.waterGoal || 8} vasos</div>
+            <div class="card-title">${log.waterGlasses || 0} / ${log.waterGoal || 10} vasos</div>
+            <div class="sub">Objetivo pauta: ${this.db.nutrition.waterLiters} litros diarios.</div>
           </div>
           <div class="actions">
             <button class="pill light" onclick="app.changeWater(-1)">−</button>
             <button class="pill" onclick="app.changeWater(1)">+ vaso</button>
           </div>
         </div>
-        <div class="progress"><div style="width:${Math.min(100, ((log.waterGlasses || 0)/(log.waterGoal || 8))*100)}%"></div></div>
+        <div class="progress"><div style="width:${Math.min(100, ((log.waterGlasses || 0)/(log.waterGoal || 10))*100)}%"></div></div>
       </section>
 
       <section class="card">
@@ -1737,10 +1846,10 @@ const app = {
 
         ${
           log.offPlanMeals?.length
-          ? `<div style="margin-top:12px;display:grid;gap:8px;">
+          ? `<div class="offplan-list">
               ${log.offPlanMeals.map(item=>`
-                <div style="background:#F8FAFB;border:1px solid #E7EDF2;border-radius:12px;padding:10px;">
-                  <b style="color:#1E3A52;">${item.type} · ${item.impact}</b>
+                <div class="offplan-item">
+                  <b>${item.type} · ${item.impact}</b>
                   <div class="sub">${item.description || "Sin descripción"}${item.note ? " · " + item.note : ""}</div>
                   <button class="mini-btn" style="margin-top:8px;" onclick="app.removeOffPlanMeal(${item.id})">Eliminar</button>
                 </div>
@@ -1757,11 +1866,11 @@ const app = {
   renderNutritionIdeas(){
     const filters = [
       {key:"desayuno", label:"🍳 Desayuno"},
+      {key:"colacionFruta", label:"🍇 Colación fruta"},
       {key:"almuerzo", label:"🍽️ Almuerzo"},
-      {key:"cena", label:"🌙 Cena"},
-      {key:"preEntreno", label:"⚡ Pre-Entreno"},
-      {key:"colacion", label:"🍎 Colación"},
-      {key:"pm", label:"🥛 PM"}
+      {key:"colacionProtein", label:"🥛 Colación protein"},
+      {key:"preEntreno", label:"⚡ Pre-entreno"},
+      {key:"cena", label:"🌙 Cena"}
     ];
 
     const ideas = this.mealIdeas[this.ideaFilter] || [];
@@ -1771,7 +1880,7 @@ const app = {
         <div class="label">Ideas basadas en tu pauta</div>
         <div class="sub" style="margin-top:8px;">Toca “Usar hoy” para copiar al registro y marcar la comida.</div>
 
-        <div style="display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px;">
+        <div class="idea-filters">
           ${filters.map(f=>`
             <button
               class="pill ${this.ideaFilter === f.key ? "" : "light"}"
@@ -1786,12 +1895,12 @@ const app = {
 
       <div style="display:grid;gap:12px;">
         ${ideas.map((idea,index)=>`
-          <section class="card" style="margin-bottom:0;">
+          <section class="idea-card">
             <div class="card-head">
               <div>
-                <div class="card-title">${idea.title}</div>
-                <div class="sub" style="margin-top:8px;">${idea.desc}</div>
-                <div style="margin-top:10px;color:#0E63FF;font-size:12px;font-weight:850;">${idea.portions}</div>
+                <div class="idea-title">${idea.title}</div>
+                <div class="idea-desc">${idea.desc}</div>
+                <div class="idea-portions">${idea.portions}</div>
               </div>
               <button class="pill" onclick="app.useIdeaToday('${this.ideaFilter}', ${index})">USAR HOY</button>
             </div>
@@ -1808,39 +1917,45 @@ const app = {
       <section class="card">
         <div class="label">Pauta nutricional</div>
         <div class="card-title">${n.patientName}</div>
-        <div class="sub">${n.goal}</div>
+        <div class="sub">${n.period} · ${n.goal}</div>
 
         <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Peso pauta</small><b>${n.planWeight} kg</b></div>
-          <div class="nutrition-item"><small>% graso</small><b>${n.bodyFat}%</b></div>
-          <div class="nutrition-item"><small>Kcal base</small><b>${n.base.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.base.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.base.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.base.fat} g</b></div>
+          <div class="nutrition-item"><small>Cereales</small><b>${n.portions.cereals}</b></div>
+          <div class="nutrition-item"><small>Frutas</small><b>${n.portions.fruits}</b></div>
+          <div class="nutrition-item"><small>Carnes bajas</small><b>${n.portions.leanMeats}</b></div>
+          <div class="nutrition-item"><small>Lácteos protein</small><b>${n.portions.proteinDairy}</b></div>
+          <div class="nutrition-item"><small>Lácteos descrem.</small><b>${n.portions.skimDairy}</b></div>
+          <div class="nutrition-item"><small>Lípidos</small><b>${n.portions.fats}</b></div>
+          <div class="nutrition-item"><small>Aceites</small><b>${n.portions.oils}</b></div>
+          <div class="nutrition-item"><small>Verduras gral.</small><b>${n.portions.vegetables}</b></div>
         </div>
 
         <div class="nutrition-note">
-          Base para seguimiento de peso, composición corporal y rendimiento.
+          Puedes cambiar alimentos de horario mientras cumplas las porciones del día.
         </div>
       </section>
 
       <section class="card">
-        <div class="label">Día entrenamiento simple</div>
-        <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Kcal</small><b>${n.trainingSingle.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.trainingSingle.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.trainingSingle.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.trainingSingle.fat} g</b></div>
-        </div>
+        <div class="label">Distribución diaria</div>
+
+        ${this.meals.map(meal=>`
+          <div class="pauta-row">
+            <b>${meal.icon} ${meal.label}</b>
+            <div class="sub">${meal.target}</div>
+          </div>
+        `).join("")}
       </section>
 
       <section class="card">
-        <div class="label">Día entrenamiento intenso</div>
+        <div class="label">Recomendaciones</div>
+
         <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Kcal</small><b>${n.trainingIntense.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.trainingIntense.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.trainingIntense.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.trainingIntense.fat} g</b></div>
+          <div class="nutrition-item"><small>Agua</small><b>${n.waterLiters} L</b></div>
+          <div class="nutrition-item"><small>Vasos app</small><b>${n.waterGoal}</b></div>
+        </div>
+
+        <div class="nutrition-note">
+          ${n.recommendations.map(r=>`• ${r}`).join("<br>")}
         </div>
       </section>
     `;
@@ -1872,6 +1987,7 @@ const app = {
       if(score >= 85) return "#34C759";
       if(score >= 60) return "#6ECFBA";
       if(score > 0) return "#D8C98A";
+
       return "#F2EFE7";
     };
 
@@ -1885,31 +2001,23 @@ const app = {
           </div>
         </div>
 
-        <div style="
-          margin-top:14px;
-          display:grid;
-          grid-template-columns:repeat(14, 1fr);
-          gap:4px;
-        ">
+        <div class="heatmap-grid">
           ${days.map(date=>`
             <div
+              class="heatmap-cell"
               title="${this.dayKey(date)}"
-              style="
-                aspect-ratio:1/1;
-                border-radius:4px;
-                background:${colorFor(date)};
-              "
+              style="background:${colorFor(date)};"
             ></div>
           `).join("")}
         </div>
 
-        <div style="display:flex;align-items:center;gap:7px;margin-top:14px;font-size:12px;color:#8A9BB0;">
+        <div class="heatmap-legend">
           <span>Menos</span>
-          <span style="width:13px;height:13px;border-radius:3px;background:#F2EFE7;display:inline-block;"></span>
-          <span style="width:13px;height:13px;border-radius:3px;background:#D8C98A;display:inline-block;"></span>
-          <span style="width:13px;height:13px;border-radius:3px;background:#6ECFBA;display:inline-block;"></span>
-          <span style="width:13px;height:13px;border-radius:3px;background:#C6921E;display:inline-block;"></span>
-          <span style="width:13px;height:13px;border-radius:3px;background:#1E1E1E;display:inline-block;"></span>
+          <span class="heatmap-dot" style="background:#F2EFE7;"></span>
+          <span class="heatmap-dot" style="background:#D8C98A;"></span>
+          <span class="heatmap-dot" style="background:#6ECFBA;"></span>
+          <span class="heatmap-dot" style="background:#C6921E;"></span>
+          <span class="heatmap-dot" style="background:#1E1E1E;"></span>
           <span>Más</span>
         </div>
 
@@ -1921,7 +2029,7 @@ const app = {
   },
 
   openWeightModal(){
-    const current = this.lastWeight() || this.db.nutrition?.planWeight || 113;
+    const current = this.lastWeight() || this.db.startWeight || 109;
     const goal = this.db.goalWeight || 95;
 
     this.showModal(`
@@ -1977,7 +2085,7 @@ const app = {
     const current = Number(`${currentKg}.${currentDec}`);
     const goal = Number(`${goalKg}.${goalDec}`);
 
-    if(!this.db.startWeight) this.db.startWeight = this.db.nutrition?.planWeight || current;
+    if(!this.db.startWeight) this.db.startWeight = current;
 
     this.db.weights.push({
       value:current,
@@ -2020,6 +2128,7 @@ const app = {
     }
 
     this.db.race = {name,date,distance:Number(distance)};
+
     this.save();
     this.closeModal();
     this.renderAll();
@@ -2073,6 +2182,7 @@ const app = {
 
   exportFullData(){
     const data = JSON.stringify(this.db, null, 2);
+
     navigator.clipboard.writeText(data);
     alert("Data completa copiada en formato JSON.");
   },
@@ -2084,12 +2194,15 @@ const app = {
 
   exportCSV(){
     let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,segundos,pasos,kcal,fc,ritmo,velocidad,cadencia,zancada,diferencia_km\n";
+
     this.db.sessions.forEach(s=>{
       csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.durationLabel||s.time||""},${s.timeSeconds||""},${s.steps||""},${s.kcal||""},${s.fc||s.avgHr||""},${s.pace||""},${s.speed||""},${s.cadence||""},${s.strideLength||""},${s.diffKm||""}\n`;
     });
 
     csv += "\nfecha,peso\n";
-    this.db.weights.forEach(w=>csv += `${w.date},${w.value}\n`);
+    this.db.weights.forEach(w=>{
+      csv += `${w.date},${w.value}\n`;
+    });
 
     csv += "\nfecha,comidas,agua,fuera_plan,alcohol,score\n";
     Object.keys(this.db.nutritionLogs).forEach(date=>{
@@ -2097,12 +2210,28 @@ const app = {
       csv += `${date},${this.nutritionCompletedMeals(date)},${log.waterGlasses || 0},${log.offPlanMeals?.length || 0},${log.alcohol || 0},${this.nutritionScore(date)}\n`;
     });
 
+    csv += "\npauta_nutricional\n";
+    csv += `paciente,${this.db.nutrition.patientName}\n`;
+    csv += `periodo,${this.db.nutrition.period}\n`;
+    csv += `objetivo,${this.db.nutrition.goal}\n`;
+    csv += `agua_litros,${this.db.nutrition.waterLiters}\n`;
+    csv += `vasos_objetivo,${this.db.nutrition.waterGoal}\n`;
+    csv += `cereales,${this.db.nutrition.portions.cereals}\n`;
+    csv += `frutas,${this.db.nutrition.portions.fruits}\n`;
+    csv += `carnes_bajas,${this.db.nutrition.portions.leanMeats}\n`;
+    csv += `lacteos_protein,${this.db.nutrition.portions.proteinDairy}\n`;
+    csv += `lacteos_descremados,${this.db.nutrition.portions.skimDairy}\n`;
+    csv += `lipidos,${this.db.nutrition.portions.fats}\n`;
+    csv += `aceites,${this.db.nutrition.portions.oils}\n`;
+    csv += `verduras_generales,${this.db.nutrition.portions.vegetables}\n`;
+
     navigator.clipboard.writeText(csv);
     alert("CSV copiado");
   },
 
   showModal(html){
     const modal = document.getElementById("modal");
+
     modal.classList.remove("hidden");
     modal.innerHTML = html;
   },
