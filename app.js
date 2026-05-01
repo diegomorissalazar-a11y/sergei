@@ -1,34 +1,16 @@
 const app = {
   db:{
-    profile:{
-      userName:"Sergei",
-      birthDate:"",
-      height:""
-    },
+    profile:{userName:"Sergei",birthDate:"",height:""},
     nutrition:{
       patientName:"Sergio Espinoza",
       planWeight:113,
       bodyFat:24.94,
       goal:"Maratón STGO · Recomposición corporal · Rendimiento running",
-      base:{
-        calories:1898,
-        carbs:235,
-        fat:43,
-        protein:143
-      },
-      trainingSingle:{
-        calories:1878,
-        carbs:222,
-        fat:42,
-        protein:153
-      },
-      trainingIntense:{
-        calories:2335,
-        carbs:265,
-        fat:71,
-        protein:153
-      }
+      base:{calories:1898,carbs:235,fat:43,protein:143},
+      trainingSingle:{calories:1878,carbs:222,fat:42,protein:153},
+      trainingIntense:{calories:2335,carbs:265,fat:71,protein:153}
     },
+    nutritionLogs:{},
     goalWeight:95,
     startWeight:null,
     weights:[],
@@ -39,23 +21,48 @@ const app = {
 
   charts:{},
   progressRange:"4",
+  nutritionTab:"registro",
+  ideaFilter:"desayuno",
+
+  meals:[
+    {key:"desayuno",name:"Desayuno",time:"08:00",icon:"🌞"},
+    {key:"colacionAM",name:"Colación AM",time:"10:30",icon:"🍎"},
+    {key:"almuerzo",name:"Almuerzo",time:"13:00",icon:"🍽️"},
+    {key:"colacionPM",name:"Colación PM",time:"16:00",icon:"🥛"},
+    {key:"preEntreno",name:"Pre-Entreno",time:"18:00",icon:"⚡"},
+    {key:"cena",name:"Cena",time:"20:30",icon:"🌙"}
+  ],
+
+  ideas:[
+    {type:"desayuno",title:"Proteico clásico",desc:"3 huevos + 1 pan molde + yogurt protein + 60g jamón pavo",macros:"3 carnes + 0.5 cereal + 1 lácteo"},
+    {type:"desayuno",title:"Avena + proteína",desc:"40g avena + yogurt protein + 2 huevos + 30g jamón",macros:"0.5 cereal + 1 lácteo + 2 carnes"},
+    {type:"desayuno",title:"Sándwich proteico",desc:"2 panes molde + 2 huevos + 60g pechuga pavo + yogurt",macros:"1 cereal + 3 carnes + 1 lácteo"},
+    {type:"almuerzo",title:"Pollo + arroz + ensalada",desc:"100g pollo + arroz cocido + verduras libres + fruta",macros:"2 carnes + cereal + verduras"},
+    {type:"almuerzo",title:"Legumbres controladas",desc:"Legumbres cocidas + verduras + proteína magra",macros:"cereal/legumbre + carnes"},
+    {type:"cena",title:"Cena ligera alta en proteína",desc:"Yogurt + pan + 3 huevos o corvina + champiñones",macros:"proteína + cereal + verduras"},
+    {type:"cena",title:"Rollitos vietnamitas",desc:"Papel de arroz + pollo/tofu + verduras + salsa liviana",macros:"cereal + proteína + verduras"},
+    {type:"preEntreno",title:"Plátano + proteína",desc:"Plátano + yogurt protein o leche alta en proteína",macros:"fruta + lácteo/prote"},
+    {type:"colacion",title:"Yogurt protein",desc:"Yogurt protein + fruta o barra proteica",macros:"lácteo + fruta"},
+    {type:"pm",title:"Batido PM",desc:"Leche alta en proteína + avena + mantequilla maní",macros:"lácteo + cereal + grasa"}
+  ],
 
   init(){
     this.load();
-    this.ensureNutritionBaseline();
+    this.ensureDefaults();
     this.renderAll();
   },
 
-  ensureNutritionBaseline(){
+  ensureDefaults(){
+    if(!this.db.nutritionLogs) this.db.nutritionLogs = {};
     if(!this.db.nutrition){
       this.db.nutrition = {
         patientName:"Sergio Espinoza",
         planWeight:113,
         bodyFat:24.94,
         goal:"Maratón STGO · Recomposición corporal · Rendimiento running",
-        base:{calories:1898, carbs:235, fat:43, protein:143},
-        trainingSingle:{calories:1878, carbs:222, fat:42, protein:153},
-        trainingIntense:{calories:2335, carbs:265, fat:71, protein:153}
+        base:{calories:1898,carbs:235,fat:43,protein:143},
+        trainingSingle:{calories:1878,carbs:222,fat:42,protein:153},
+        trainingIntense:{calories:2335,carbs:265,fat:71,protein:153}
       };
     }
   },
@@ -72,11 +79,12 @@ const app = {
         this.db = {
           ...this.db,
           ...parsed,
-          profile:{...this.db.profile, ...(parsed.profile || {})},
-          nutrition:{...this.db.nutrition, ...(parsed.nutrition || {})}
+          profile:{...this.db.profile,...(parsed.profile || {})},
+          nutrition:{...this.db.nutrition,...(parsed.nutrition || {})},
+          nutritionLogs:parsed.nutritionLogs || {}
         };
       }catch(e){
-        console.error("Error leyendo localStorage", e);
+        console.error("Error localStorage", e);
       }
     }
   },
@@ -89,14 +97,12 @@ const app = {
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     if(el) el.classList.add("active");
 
-    if(id === "progreso"){
+    if(id==="progreso"){
       this.renderProgress();
       setTimeout(()=>this.drawProgressCharts(),100);
     }
 
-    if(id === "nutricion"){
-      this.renderNutricion();
-    }
+    if(id==="nutricion") this.renderNutricion();
   },
 
   renderAll(){
@@ -119,31 +125,34 @@ const app = {
   },
 
   today(){
-    return new Date().toLocaleDateString("es-CL",{
-      weekday:"long",
-      day:"numeric",
-      month:"long"
-    });
+    return new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+  },
+
+  dateKey(date=new Date()){
+    const d = new Date(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
   },
 
   dateInputToISO(dateString){
     if(!dateString) return new Date().toISOString();
     const [y,m,d] = dateString.split("-").map(Number);
-    return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+    return new Date(y,m-1,d,12,0,0).toISOString();
   },
 
   lastWeight(){
-    return this.db.weights.length ? this.db.weights[this.db.weights.length - 1].value : null;
+    return this.db.weights.length ? this.db.weights[this.db.weights.length-1].value : null;
   },
 
   weekSessions(){
     const now = new Date();
     const day = now.getDay() || 7;
     const monday = new Date(now);
-    monday.setDate(now.getDate() - day + 1);
+    monday.setDate(now.getDate()-day+1);
     monday.setHours(0,0,0,0);
-
-    return this.db.sessions.filter(s => new Date(s.date) >= monday);
+    return this.db.sessions.filter(s=>new Date(s.date)>=monday);
   },
 
   totalKmWeek(){
@@ -151,55 +160,39 @@ const app = {
   },
 
   activePlan(){
-    if(!this.db.plans.length) return null;
-    return this.db.plans[this.db.plans.length - 1];
+    return this.db.plans.length ? this.db.plans[this.db.plans.length-1] : null;
   },
 
   dayNumber(dayName){
-    const map = {
-      "lunes":1,
-      "martes":2,
-      "miércoles":3,
-      "miercoles":3,
-      "jueves":4,
-      "viernes":5,
-      "sábado":6,
-      "sabado":6,
-      "domingo":7
-    };
+    const map = {"lunes":1,"martes":2,"miércoles":3,"miercoles":3,"jueves":4,"viernes":5,"sábado":6,"sabado":6,"domingo":7};
     return map[String(dayName || "").toLowerCase()] || 0;
   },
 
   planDueDaysUntilToday(){
     const activePlan = this.activePlan();
     if(!activePlan || !activePlan.days.length) return [];
-
     const todayNumber = new Date().getDay() || 7;
-    return activePlan.days.filter(d => this.dayNumber(d.day) <= todayNumber);
+    return activePlan.days.filter(d=>this.dayNumber(d.day)<=todayNumber);
   },
 
   completedDuePlanDays(){
     const activePlan = this.activePlan();
     if(!activePlan || !activePlan.days.length) return [];
 
-    const dueDays = this.planDueDaysUntilToday().map(d => d.day);
-
+    const dueDays = this.planDueDaysUntilToday().map(d=>d.day);
     const completedDays = new Set(
       this.weekSessions()
-        .filter(s => s.fromPlan === true && s.planName === activePlan.name)
-        .filter(s => dueDays.includes(s.planDay))
-        .map(s => s.planDay)
+        .filter(s=>s.fromPlan===true && s.planName===activePlan.name)
+        .filter(s=>dueDays.includes(s.planDay))
+        .map(s=>s.planDay)
     );
-
     return [...completedDays];
   },
 
   adherenceToDate(){
     const due = this.planDueDaysUntilToday();
     if(!due.length) return 0;
-
-    const done = this.completedDuePlanDays().length;
-    return Math.round((done / due.length) * 100);
+    return Math.round((this.completedDuePlanDays().length / due.length) * 100);
   },
 
   weeklyAdherence(){
@@ -208,12 +201,26 @@ const app = {
 
     const completedDays = new Set(
       this.weekSessions()
-        .filter(s => s.fromPlan === true && s.planName === activePlan.name)
-        .map(s => s.planDay)
+        .filter(s=>s.fromPlan===true && s.planName===activePlan.name)
+        .map(s=>s.planDay)
     );
 
-    const done = activePlan.days.filter(d => completedDays.has(d.day)).length;
+    const done = activePlan.days.filter(d=>completedDays.has(d.day)).length;
     return Math.round((done / activePlan.days.length) * 100);
+  },
+
+  plannedKmDue(){
+    return this.planDueDaysUntilToday().reduce((a,d)=>a+Number(d.km || 0),0);
+  },
+
+  doneKmDue(){
+    const activePlan = this.activePlan();
+    if(!activePlan) return 0;
+    const dueDays = this.planDueDaysUntilToday().map(d=>d.day);
+
+    return this.weekSessions()
+      .filter(s=>s.fromPlan && s.planName===activePlan.name && dueDays.includes(s.planDay))
+      .reduce((a,s)=>a+Number(s.km || 0),0);
   },
 
   streak(){
@@ -228,63 +235,49 @@ const app = {
     const current = this.lastWeight();
     const goal = this.db.goalWeight;
     const start = this.db.startWeight || this.db.nutrition?.planWeight || current;
-
-    if(!current || !goal || !start || start === goal) return 0;
-
-    const pct = ((start - current) / (start - goal)) * 100;
-    return Math.max(0, Math.min(100, Math.round(pct)));
+    if(!current || !goal || !start || start===goal) return 0;
+    const pct = ((start-current)/(start-goal))*100;
+    return Math.max(0,Math.min(100,Math.round(pct)));
   },
 
   raceDaysLeft(){
     if(!this.db.race?.date) return null;
-
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
+    const today = new Date(now.getFullYear(),now.getMonth(),now.getDate());
     const [y,m,d] = this.db.race.date.split("-").map(Number);
-    const raceDate = new Date(y, m - 1, d);
-
-    const diff = Math.ceil((raceDate - today) / 86400000);
-    return Math.max(0, diff);
+    const raceDate = new Date(y,m-1,d);
+    return Math.max(0,Math.ceil((raceDate-today)/86400000));
   },
 
   formatDuration(seconds){
     seconds = Number(seconds || 0);
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
+    const h = Math.floor(seconds/3600);
+    const m = Math.floor((seconds%3600)/60);
+    const s = seconds%60;
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
   },
 
   formatPace(totalSeconds, km){
     if(!totalSeconds || !km) return "";
-    const paceSec = Math.round(Number(totalSeconds) / Number(km));
-    const min = Math.floor(paceSec / 60);
-    const sec = paceSec % 60;
+    const paceSec = Math.round(Number(totalSeconds)/Number(km));
+    const min = Math.floor(paceSec/60);
+    const sec = paceSec%60;
     return `${min}'${String(sec).padStart(2,"0")}"/km`;
   },
 
   formatSpeed(totalSeconds, km){
     if(!totalSeconds || !km) return "";
-    const hours = Number(totalSeconds) / 3600;
-    return (Number(km) / hours).toFixed(2);
+    return (Number(km)/(Number(totalSeconds)/3600)).toFixed(2);
   },
 
   normalizeRunMetrics(raw){
     const km = Number(raw.km || 0);
     const timeSeconds = Number(raw.timeSeconds || 0);
     const steps = Number(raw.steps || 0);
-
-    const pace = km && timeSeconds ? this.formatPace(timeSeconds, km) : "";
-    const speed = km && timeSeconds ? this.formatSpeed(timeSeconds, km) : "";
-
-    const cadence = steps && timeSeconds
-      ? Math.round(steps / (timeSeconds / 60))
-      : "";
-
-    const strideLength = km && steps
-      ? Math.round((km * 100000) / steps)
-      : "";
+    const pace = km && timeSeconds ? this.formatPace(timeSeconds,km) : "";
+    const speed = km && timeSeconds ? this.formatSpeed(timeSeconds,km) : "";
+    const cadence = steps && timeSeconds ? Math.round(steps/(timeSeconds/60)) : "";
+    const strideLength = km && steps ? Math.round((km*100000)/steps) : "";
 
     return {
       ...raw,
@@ -307,11 +300,14 @@ const app = {
     const current = this.lastWeight();
     const goal = this.db.goalWeight;
     const nutritionWeight = this.db.nutrition?.planWeight || 113;
-    const lostFromStart = current ? (nutritionWeight - current).toFixed(1) : "0.0";
+    const lostFromStart = current ? (nutritionWeight-current).toFixed(1) : "0.0";
     const missing = current ? Math.max(0,current-goal).toFixed(1) : "0.0";
     const activePlan = this.activePlan();
     const dueDays = this.planDueDaysUntilToday();
     const doneDue = this.completedDuePlanDays();
+    const kmDue = this.plannedKmDue();
+    const kmDone = this.doneKmDue();
+    const kmDiff = (kmDone - kmDue).toFixed(1);
 
     document.getElementById("inicio").innerHTML = `
       ${this.header()}
@@ -320,17 +316,17 @@ const app = {
       <h1>Hola, ${this.db.profile.userName || "Sergei"} 👋</h1>
 
       ${activePlan ? `
-        <section class="card">
+        <section class="card nutri-score-card">
           <div class="card-head">
             <div>
-              <div class="label">Plan activo · ${activePlan.name}</div>
+              <div class="label">Adherencia al plan</div>
               <div class="card-title">${doneDue.length} de ${dueDays.length} vencidos · ${this.adherenceToDate()}%</div>
-              <div class="sub">${activePlan.days.map(d=>`${d.day} ${d.km}km`).join(" · ")}</div>
+              <div class="sub">${kmDone.toFixed(1)} km reales / ${kmDue.toFixed(1)} km planificados · ${kmDiff >= 0 ? "+" : ""}${kmDiff} km</div>
             </div>
-            <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Editar</button>
+            <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Plan</button>
           </div>
           <div class="progress"><div style="width:${this.adherenceToDate()}%"></div></div>
-          <div class="sub" style="margin-top:10px;">Adherencia al día. Semanal total: ${this.weeklyAdherence()}%</div>
+          <div class="sub" style="margin-top:10px;">Semanal total: ${this.weeklyAdherence()}%</div>
         </section>
       ` : `
         <section class="card">
@@ -363,20 +359,17 @@ const app = {
               <span class="weight-percent">${this.weightProgress()}%</span>
             </div>
             <div class="progress"><div style="width:${this.weightProgress()}%"></div></div>
-
             <div class="weight-values">
               <div><b class="green">-${lostFromStart}kg</b><br><small>Desde pauta</small></div>
               <div><b class="blue">${missing}kg</b><br><small>Faltan</small></div>
             </div>
           </div>
-
           <div class="goal-box">
             <small>Objetivo</small>
             <b>${goal}</b>
             <small>kg</small>
           </div>
         </div>
-
         <div class="sub" style="margin-top:12px;">Peso pauta nutricional: ${nutritionWeight} kg</div>
       </section>
 
@@ -415,7 +408,6 @@ const app = {
     }
 
     const days = this.raceDaysLeft();
-
     return `
       <section class="card">
         <div class="card-head">
@@ -426,16 +418,12 @@ const app = {
           </div>
           <button class="pill light" onclick="app.openRaceModal()">Editar</button>
         </div>
-
         <div class="race-box" style="margin-top:12px">
           <div>
             <div class="sub">Cuenta regresiva a tu evento objetivo.</div>
-            <div class="progress"><div style="width:${days !== null ? Math.max(5, Math.min(100, 100 - days)) : 0}%"></div></div>
+            <div class="progress"><div style="width:${days !== null ? Math.max(5,Math.min(100,100-days)) : 0}%"></div></div>
           </div>
-          <div class="days-counter">
-            <b>${days}</b>
-            <small>días</small>
-          </div>
+          <div class="days-counter"><b>${days}</b><small>días</small></div>
         </div>
       </section>
     `;
@@ -455,7 +443,6 @@ const app = {
             <div class="train-title">${s.type==="run" ? "Carrera" : "Fuerza"}</div>
             <div class="sub">${this.relativeDate(s.date)}</div>
           </div>
-
           <div class="metrics">
             <div class="metric"><b>${s.durationLabel || s.time || "-"} </b><small>Duración</small></div>
             <div class="metric"><b>${s.km || "-"} km</b><small>Distancia</small></div>
@@ -467,7 +454,6 @@ const app = {
             <div class="metric"><b>${s.cadence || "-"} </b><small>Cadencia</small></div>
             <div class="metric"><b>${s.strideLength || "-"} cm</b><small>Zancada</small></div>
           </div>
-
           <div class="session-actions">
             <button class="mini-btn" onclick="app.openEditSessionModal(${idx})">Editar</button>
           </div>
@@ -479,7 +465,7 @@ const app = {
   relativeDate(date){
     const d = new Date(date).toDateString();
     const t = new Date().toDateString();
-    return d === t ? "Hoy" : new Date(date).toLocaleDateString("es-CL");
+    return d===t ? "Hoy" : new Date(date).toLocaleDateString("es-CL");
   },
 
   formatDate(dateString){
@@ -490,19 +476,13 @@ const app = {
 
   renderEntrenamiento(){
     const activePlan = this.activePlan();
-
     document.getElementById("entrenamiento").innerHTML = `
       ${this.header()}
-
       <button class="free-session" onclick="app.openFreeSessionModal()">+ SESIÓN LIBRE</button>
-
       <div class="label" style="margin-bottom:14px;">Mis rutinas</div>
-
       ${
         activePlan && activePlan.days.length
-        ? `<div class="routine-list">
-            ${activePlan.days.map((day, index) => this.renderRoutineCard(day, index, activePlan)).join("")}
-          </div>`
+        ? `<div class="routine-list">${activePlan.days.map((day,index)=>this.renderRoutineCard(day,index,activePlan)).join("")}</div>`
         : `<section class="card empty">
             <div class="card-title">No hay plan activo.</div>
             <div class="sub">Crea un plan semanal para ver tus rutinas aquí.</div>
@@ -512,8 +492,8 @@ const app = {
     `;
   },
 
-  renderRoutineCard(day, index, plan){
-    const completed = this.findCompletedPlanSession(day.day, plan.name);
+  renderRoutineCard(day,index,plan){
+    const completed = this.findCompletedPlanSession(day.day,plan.name);
     const isDone = !!completed;
     const diff = completed?.diffKm ? Number(completed.diffKm) : null;
 
@@ -521,33 +501,25 @@ const app = {
       <section class="routine-card ${isDone ? "done" : ""}">
         <div class="routine-body">
           <div class="routine-header">
-            <div class="routine-number">${index + 1}</div>
-
+            <div class="routine-number">${index+1}</div>
             <div>
               <div class="routine-title">${day.day} — Carrera</div>
               <div class="routine-sub">Objetivo: ${day.km} km · ${plan.name}</div>
             </div>
-
             ${isDone ? `<div class="routine-status">✓ COMPLETADO</div>` : `<div class="dots">...</div>`}
           </div>
-
           <div class="routine-tags">
             <span class="tag plan">👟 Carrera</span>
             <span class="tag">${day.km} km</span>
             <span class="tag blue-tag">⏱ Tiempo con rueda</span>
             <span class="tag">📊 ${plan.name}</span>
           </div>
-
           ${isDone ? `
             <div class="completed-pill">✓ Entrenamiento completado</div>
             ${diff !== null ? `<div class="diff-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(1)} km vs plan</div>` : ""}
           ` : ""}
         </div>
-
-        <div class="routine-note">
-          ✦ Carga plan: ${day.day} / Carrera ${day.km} km
-        </div>
-
+        <div class="routine-note">✦ Carga plan: ${day.day} / Carrera ${day.km} km</div>
         ${
           isDone
           ? `<button class="routine-action done-action" disabled>✓ COMPLETADO</button>`
@@ -557,54 +529,41 @@ const app = {
     `;
   },
 
-  findCompletedPlanSession(dayName, planName){
-    return this.weekSessions().find(s =>
-      s.type === "run" &&
-      s.fromPlan === true &&
-      s.planDay === dayName &&
-      s.planName === planName
-    );
+  findCompletedPlanSession(dayName,planName){
+    return this.weekSessions().find(s=>s.type==="run" && s.fromPlan===true && s.planDay===dayName && s.planName===planName);
   },
 
   openCompletePlanModal(index){
     const plan = this.activePlan();
     if(!plan) return;
-
     const day = plan.days[index];
 
     this.showModal(`
       <div class="modal-box">
         <div class="modal-title">Completar entrenamiento</div>
         <div class="modal-subtitle">${day.day} · Objetivo ${day.km} km · ${plan.name}</div>
-
         <input id="complete-date" type="date" value="${new Date().toISOString().slice(0,10)}">
         <input id="complete-km" type="number" step="0.1" placeholder="Distancia real km" value="${day.km}">
-
-        ${this.timeWheelHTML("complete", "Duración")}
-
+        ${this.timeWheelHTML("complete","Duración")}
         <input id="complete-steps" type="number" placeholder="Pasos">
         <input id="complete-kcal" type="number" placeholder="Calorías kcal">
         <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
-
         <button class="btn" onclick="app.saveCompletedPlanSession(${index})">Guardar entrenamiento</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
-
-    this.buildTimeWheels("complete", 0);
+    this.buildTimeWheels("complete",0);
   },
 
   saveCompletedPlanSession(index){
     const plan = this.activePlan();
     if(!plan) return;
-
     const day = plan.days[index];
-
     const km = document.getElementById("complete-km").value;
     const totalSeconds = this.getTimeFromWheels("complete");
     const date = document.getElementById("complete-date").value || new Date().toISOString().slice(0,10);
 
-    if(!km || totalSeconds <= 0){
+    if(!km || totalSeconds<=0){
       alert("Ingresa distancia y tiempo.");
       return;
     }
@@ -621,21 +580,20 @@ const app = {
       kcal:document.getElementById("complete-kcal").value,
       fc:document.getElementById("complete-fc").value,
       date:this.dateInputToISO(date),
-      diffKm:(Number(km) - Number(day.km)).toFixed(1)
+      diffKm:(Number(km)-Number(day.km)).toFixed(1)
     });
 
     this.db.sessions.push(session);
     this.save();
     this.closeModal();
     this.renderAll();
-    this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+    this.go("entrenamiento",document.querySelectorAll(".tab")[1]);
   },
 
   openEditSessionModal(index){
     const s = this.db.sessions[index];
     if(!s) return;
-
-    const isRun = s.type === "run";
+    const isRun = s.type==="run";
     const totalSeconds = Number(s.timeSeconds || 0);
     const dateValue = new Date(s.date).toISOString().slice(0,10);
 
@@ -643,34 +601,27 @@ const app = {
       <div class="modal-box">
         <div class="modal-title">Editar entrenamiento</div>
         <div class="modal-subtitle">${isRun ? "Carrera" : "Fuerza"} · ${this.relativeDate(s.date)}</div>
-
         <input id="edit-date" type="date" value="${dateValue}">
-
         ${isRun ? `<input id="edit-km" type="number" step="0.1" placeholder="Distancia km" value="${s.km || ""}">` : ""}
-
-        ${this.timeWheelHTML("edit", "Duración")}
-
+        ${this.timeWheelHTML("edit","Duración")}
         ${isRun ? `<input id="edit-steps" type="number" placeholder="Pasos" value="${s.steps || ""}">` : ""}
-
         <input id="edit-kcal" type="number" placeholder="Calorías kcal" value="${s.kcal || ""}">
         <input id="edit-fc" type="number" placeholder="Frecuencia cardíaca media ppm" value="${s.fc || s.avgHr || ""}">
-
         <button class="btn" onclick="app.saveEditedSession(${index})">Guardar cambios</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
 
-    this.buildTimeWheels("edit", totalSeconds);
+    this.buildTimeWheels("edit",totalSeconds);
   },
 
   saveEditedSession(index){
     const old = this.db.sessions[index];
     if(!old) return;
-
     const totalSeconds = this.getTimeFromWheels("edit");
     const date = document.getElementById("edit-date").value || new Date().toISOString().slice(0,10);
 
-    if(totalSeconds <= 0){
+    if(totalSeconds<=0){
       alert("Ingresa duración.");
       return;
     }
@@ -686,14 +637,13 @@ const app = {
       avgHr:document.getElementById("edit-fc").value
     };
 
-    if(old.type === "run"){
+    if(old.type==="run"){
       const km = document.getElementById("edit-km").value;
-
       updated = this.normalizeRunMetrics({
         ...updated,
         km,
         steps:document.getElementById("edit-steps").value,
-        diffKm:old.plannedKm ? (Number(km) - Number(old.plannedKm)).toFixed(1) : ""
+        diffKm:old.plannedKm ? (Number(km)-Number(old.plannedKm)).toFixed(1) : ""
       });
     }
 
@@ -708,19 +658,15 @@ const app = {
       <div class="modal-box">
         <div class="modal-title">Sesión libre</div>
         <div class="modal-subtitle">Entrenamiento fuera del plan semanal.</div>
-
         <select id="free-type" onchange="app.renderFreeSessionFields()">
           <option value="run">Carrera</option>
           <option value="strength">Fuerza</option>
         </select>
-
         <div id="free-fields"></div>
-
         <button class="btn" onclick="app.saveFreeSession()">Guardar sesión libre</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
-
     this.renderFreeSessionFields();
   },
 
@@ -729,21 +675,21 @@ const app = {
     const box = document.getElementById("free-fields");
     if(!box) return;
 
-    box.innerHTML = type === "run" ? `
+    box.innerHTML = type==="run" ? `
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
       <input id="free-km" type="number" step="0.1" placeholder="Distancia km">
       <input id="free-steps" type="number" placeholder="Pasos">
-      ${this.timeWheelHTML("free", "Duración")}
+      ${this.timeWheelHTML("free","Duración")}
       <input id="free-kcal" type="number" placeholder="Calorías kcal">
       <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
     ` : `
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
-      ${this.timeWheelHTML("free", "Duración")}
+      ${this.timeWheelHTML("free","Duración")}
       <input id="free-kcal" type="number" placeholder="Calorías kcal">
       <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
     `;
 
-    this.buildTimeWheels("free", 0);
+    this.buildTimeWheels("free",0);
   },
 
   saveFreeSession(){
@@ -751,7 +697,7 @@ const app = {
     const date = document.getElementById("free-date").value || new Date().toISOString().slice(0,10);
     const totalSeconds = this.getTimeFromWheels("free");
 
-    if(totalSeconds <= 0){
+    if(totalSeconds<=0){
       alert("Ingresa la duración.");
       return;
     }
@@ -768,7 +714,7 @@ const app = {
       avgHr:document.getElementById("free-fc").value
     };
 
-    if(type === "run"){
+    if(type==="run"){
       session = this.normalizeRunMetrics({
         ...session,
         km:document.getElementById("free-km").value,
@@ -780,10 +726,10 @@ const app = {
     this.save();
     this.closeModal();
     this.renderAll();
-    this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+    this.go("entrenamiento",document.querySelectorAll(".tab")[1]);
   },
 
-  timeWheelHTML(prefix, label){
+  timeWheelHTML(prefix,label){
     return `
       <div class="time-picker-block">
         <div class="time-picker-label">${label}</div>
@@ -799,53 +745,45 @@ const app = {
     `;
   },
 
-  buildTimeWheels(prefix, totalSeconds=0){
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-
-    this.buildGenericWheel(`${prefix}HourWheel`, 0, 10, h);
-    this.buildGenericWheel(`${prefix}MinuteWheel`, 0, 59, m);
-    this.buildGenericWheel(`${prefix}SecondWheel`, 0, 59, s);
+  buildTimeWheels(prefix,totalSeconds=0){
+    const h = Math.floor(totalSeconds/3600);
+    const m = Math.floor((totalSeconds%3600)/60);
+    const s = totalSeconds%60;
+    this.buildGenericWheel(`${prefix}HourWheel`,0,10,h);
+    this.buildGenericWheel(`${prefix}MinuteWheel`,0,59,m);
+    this.buildGenericWheel(`${prefix}SecondWheel`,0,59,s);
   },
 
-  buildGenericWheel(id, min, max, selected){
+  buildGenericWheel(id,min,max,selected){
     const el = document.getElementById(id);
     if(!el) return;
-
     el.innerHTML = "";
-
-    for(let i=min; i<=max; i++){
+    for(let i=min;i<=max;i++){
       const item = document.createElement("div");
       item.className = "wheel-item";
       item.textContent = String(i).padStart(2,"0");
       el.appendChild(item);
     }
-
-    setTimeout(()=>{
-      el.scrollTop = (selected - min) * 42;
-    }, 30);
+    setTimeout(()=>{el.scrollTop=(selected-min)*42},30);
   },
 
-  getGenericWheelValue(id, min){
+  getGenericWheelValue(id,min){
     const el = document.getElementById(id);
     if(!el) return min;
-    return min + Math.round(el.scrollTop / 42);
+    return min + Math.round(el.scrollTop/42);
   },
 
   getTimeFromWheels(prefix){
     const h = this.getGenericWheelValue(`${prefix}HourWheel`,0);
     const m = this.getGenericWheelValue(`${prefix}MinuteWheel`,0);
     const s = this.getGenericWheelValue(`${prefix}SecondWheel`,0);
-    return (h * 3600) + (m * 60) + s;
+    return (h*3600)+(m*60)+s;
   },
 
   renderPlan(){
     const activePlan = this.activePlan();
-
     document.getElementById("plan").innerHTML = `
       ${this.header()}
-
       ${activePlan ? `
         <section class="card">
           <div class="card-head">
@@ -864,16 +802,12 @@ const app = {
           <button class="btn" onclick="app.openPlanModal()">Crear plan</button>
         </section>
       `}
-
       <section class="card">
         <div class="label">Historial de planes</div>
         ${this.db.plans.length ? this.db.plans.map(p=>`
           <div class="plan-day">
             <span>✓</span>
-            <div>
-              <b>${p.name}</b>
-              <div class="sub">${p.days.length} días</div>
-            </div>
+            <div><b>${p.name}</b><div class="sub">${p.days.length} días</div></div>
             <span>${p.days.reduce((a,d)=>a+Number(d.km||0),0)} km</span>
           </div>
         `).join("") : `<div class="empty">Sin planes guardados.</div>`}
@@ -882,16 +816,14 @@ const app = {
   },
 
   openPlanModal(){
-    const nextNumber = this.db.plans.length + 1;
+    const nextNumber = this.db.plans.length+1;
     const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 
     this.showModal(`
       <div class="modal-box">
         <div class="modal-title">Crear plan semanal</div>
         <div class="modal-subtitle">Selecciona los días y luego ingresa kilómetros objetivo.</div>
-
         <input id="plan-name" value="Plan semana ${nextNumber}" placeholder="Nombre del plan">
-
         <div class="plan-list">
           ${days.map(day=>`
             <div class="plan-day">
@@ -901,7 +833,6 @@ const app = {
             </div>
           `).join("")}
         </div>
-
         <button class="btn" onclick="app.savePlanFromModal()">Guardar plan</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
@@ -911,7 +842,6 @@ const app = {
   togglePlanDay(day){
     const check = document.getElementById(`check-${day}`);
     const input = document.getElementById(`km-${day}`);
-
     const isOn = check.classList.toggle("on");
     input.disabled = !isOn;
     if(isOn) input.focus();
@@ -919,29 +849,20 @@ const app = {
   },
 
   savePlanFromModal(){
-    const name = document.getElementById("plan-name").value.trim() || `Plan semana ${this.db.plans.length + 1}`;
+    const name = document.getElementById("plan-name").value.trim() || `Plan semana ${this.db.plans.length+1}`;
     const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 
     const selected = days
-      .filter(day => document.getElementById(`check-${day}`).classList.contains("on"))
-      .map(day => ({
-        day,
-        km:Number(document.getElementById(`km-${day}`).value || 0)
-      }))
-      .filter(d => d.km > 0);
+      .filter(day=>document.getElementById(`check-${day}`).classList.contains("on"))
+      .map(day=>({day,km:Number(document.getElementById(`km-${day}`).value || 0)}))
+      .filter(d=>d.km>0);
 
     if(!selected.length){
       alert("Selecciona al menos un día e ingresa kilómetros.");
       return;
     }
 
-    this.db.plans.push({
-      id:Date.now(),
-      name,
-      createdAt:new Date().toISOString(),
-      days:selected
-    });
-
+    this.db.plans.push({id:Date.now(),name,createdAt:new Date().toISOString(),days:selected});
     this.save();
     this.closeModal();
     this.renderAll();
@@ -957,11 +878,10 @@ const app = {
     const data = this.getProgressData();
     const current = this.lastWeight();
     const planWeight = this.db.nutrition?.planWeight || 113;
-    const fromPlan = current ? (planWeight - current).toFixed(1) : "--";
+    const fromPlan = current ? (planWeight-current).toFixed(1) : "--";
 
     document.getElementById("progreso").innerHTML = `
       ${this.header()}
-
       <div class="range-filter">
         ${["4","6","8","all"].map(r=>`
           <button class="range-btn ${this.progressRange===r ? "active" : ""}" onclick="app.setProgressRange('${r}')">
@@ -969,78 +889,46 @@ const app = {
           </button>
         `).join("")}
       </div>
-
       <section class="progress-kpis">
-        <div class="kpi-card">
-          <div class="kpi-label">Peso actual</div>
-          <div class="kpi-value">${current || "--"} kg</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Desde pauta</div>
-          <div class="kpi-value">${fromPlan} kg</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Mejor ritmo</div>
-          <div class="kpi-value">${data.bestPace || "--"}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Adh. semana</div>
-          <div class="kpi-value">${this.weeklyAdherence()}%</div>
-        </div>
+        <div class="kpi-card"><div class="kpi-label">Peso actual</div><div class="kpi-value">${current || "--"} kg</div></div>
+        <div class="kpi-card"><div class="kpi-label">Desde pauta</div><div class="kpi-value">${fromPlan} kg</div></div>
+        <div class="kpi-card"><div class="kpi-label">Mejor ritmo</div><div class="kpi-value">${data.bestPace || "--"}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Adh. semana</div><div class="kpi-value">${this.weeklyAdherence()}%</div></div>
       </section>
-
       <section class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Peso histórico</div>
-          <div class="sub">${data.weights.length} registros</div>
-        </div>
+        <div class="chart-head"><div class="chart-title">Peso histórico</div><div class="sub">${data.weights.length} registros</div></div>
         ${data.weights.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay datos suficientes de peso.</div>`}
       </section>
-
       <section class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Km semanales</div>
-          <div class="sub">Carga de entrenamiento</div>
-        </div>
+        <div class="chart-head"><div class="chart-title">Km semanales</div><div class="sub">Carga de entrenamiento</div></div>
         ${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay entrenamientos con distancia.</div>`}
       </section>
-
       <section class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Ritmo promedio</div>
-          <div class="sub">min/km por semana</div>
-        </div>
+        <div class="chart-head"><div class="chart-title">Ritmo promedio</div><div class="sub">min/km por semana</div></div>
         ${data.weeklyPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay datos de ritmo.</div>`}
       </section>
-
       <section class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Adherencia semanal</div>
-          <div class="sub">plan vs completado</div>
-        </div>
+        <div class="chart-head"><div class="chart-title">Adherencia semanal</div><div class="sub">plan vs completado</div></div>
         ${data.weeklyAdherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa entrenamientos para ver adherencia.</div>`}
       </section>
     `;
-
     setTimeout(()=>this.drawProgressCharts(),100);
   },
 
   getProgressData(){
     const since = this.getRangeStartDate();
-
-    const sessions = this.db.sessions.filter(s => !since || new Date(s.date) >= since);
-    const weights = this.db.weights.filter(w => !since || new Date(w.date) >= since);
-
-    const runs = sessions.filter(s => s.type === "run" && Number(s.km) > 0);
+    const sessions = this.db.sessions.filter(s=>!since || new Date(s.date)>=since);
+    const weights = this.db.weights.filter(w=>!since || new Date(w.date)>=since);
+    const runs = sessions.filter(s=>s.type==="run" && Number(s.km)>0);
 
     const bestPaceSession = runs
-      .filter(s => s.timeSeconds && s.km)
-      .sort((a,b)=>(Number(a.timeSeconds)/Number(a.km)) - (Number(b.timeSeconds)/Number(b.km)))[0];
+      .filter(s=>s.timeSeconds && s.km)
+      .sort((a,b)=>(Number(a.timeSeconds)/Number(a.km))-(Number(b.timeSeconds)/Number(b.km)))[0];
 
     return {
       sessions,
       weights,
-      bestPace: bestPaceSession ? bestPaceSession.pace : "",
+      bestPace:bestPaceSession ? bestPaceSession.pace : "",
       weeklyKm:this.weeklyKmSeries(sessions),
       weeklyPace:this.weeklyPaceSeries(sessions),
       weeklyAdherence:this.weeklyAdherenceSeries(sessions)
@@ -1048,10 +936,10 @@ const app = {
   },
 
   getRangeStartDate(){
-    if(this.progressRange === "all") return null;
+    if(this.progressRange==="all") return null;
     const weeks = Number(this.progressRange || 4);
     const d = new Date();
-    d.setDate(d.getDate() - weeks * 7);
+    d.setDate(d.getDate()-weeks*7);
     d.setHours(0,0,0,0);
     return d;
   },
@@ -1059,14 +947,13 @@ const app = {
   weekStart(date){
     const d = new Date(date);
     const day = d.getDay() || 7;
-    d.setDate(d.getDate() - day + 1);
+    d.setDate(d.getDate()-day+1);
     d.setHours(0,0,0,0);
     return d;
   },
 
   weekLabel(date){
-    const d = this.weekStart(date);
-    return d.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
+    return this.weekStart(date).toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
   },
 
   weeklyKmSeries(sessions){
@@ -1077,51 +964,38 @@ const app = {
       const key = this.weekLabel(s.date);
       map[key] = (map[key] || 0) + km;
     });
-
-    return {
-      labels:Object.keys(map),
-      values:Object.values(map).map(v=>Number(v.toFixed(1)))
-    };
+    return {labels:Object.keys(map),values:Object.values(map).map(v=>Number(v.toFixed(1)))};
   },
 
   weeklyPaceSeries(sessions){
     const map = {};
-
     sessions.forEach(s=>{
       if(!s.timeSeconds || !s.km) return;
       const key = this.weekLabel(s.date);
-      if(!map[key]) map[key] = {seconds:0, km:0};
+      if(!map[key]) map[key] = {seconds:0,km:0};
       map[key].seconds += Number(s.timeSeconds);
       map[key].km += Number(s.km);
     });
 
     const labels = Object.keys(map);
-    const values = labels.map(k=>{
-      const paceSec = map[k].seconds / map[k].km;
-      return Number((paceSec / 60).toFixed(2));
-    });
-
-    return {labels, values};
+    const values = labels.map(k=>Number(((map[k].seconds/map[k].km)/60).toFixed(2)));
+    return {labels,values};
   },
 
   weeklyAdherenceSeries(sessions){
     const activePlan = this.activePlan();
-    if(!activePlan || !activePlan.days.length) return {labels:[], values:[]};
+    if(!activePlan || !activePlan.days.length) return {labels:[],values:[]};
 
     const map = {};
-
-    sessions
-      .filter(s=>s.fromPlan && s.planName === activePlan.name)
-      .forEach(s=>{
-        const key = this.weekLabel(s.date);
-        if(!map[key]) map[key] = new Set();
-        map[key].add(s.planDay);
-      });
+    sessions.filter(s=>s.fromPlan && s.planName===activePlan.name).forEach(s=>{
+      const key = this.weekLabel(s.date);
+      if(!map[key]) map[key] = new Set();
+      map[key].add(s.planDay);
+    });
 
     const labels = Object.keys(map);
-    const values = labels.map(k=>Math.round((map[k].size / activePlan.days.length) * 100));
-
-    return {labels, values};
+    const values = labels.map(k=>Math.round((map[k].size/activePlan.days.length)*100));
+    return {labels,values};
   },
 
   destroyChart(name){
@@ -1132,8 +1006,7 @@ const app = {
   },
 
   drawProgressCharts(){
-    if(typeof Chart === "undefined") return;
-
+    if(typeof Chart==="undefined") return;
     const data = this.getProgressData();
 
     this.destroyChart("weight");
@@ -1148,26 +1021,8 @@ const app = {
         data:{
           labels:data.weights.map(w=>new Date(w.date).toLocaleDateString("es-CL",{day:"2-digit",month:"short"})),
           datasets:[
-            {
-              label:"Peso",
-              data:data.weights.map(w=>Number(w.value)),
-              borderColor:"#4A7FA5",
-              backgroundColor:"rgba(74,127,165,.12)",
-              tension:.35,
-              fill:true,
-              pointRadius:4
-            },
-            {
-              label:"Objetivo",
-              data:data.weights.map(()=>Number(this.db.goalWeight)),
-              borderColor:"#6ECFBA",
-              backgroundColor:"transparent",
-              borderDash:[6,6],
-              tension:0,
-              fill:false,
-              pointRadius:0,
-              borderWidth:2
-            }
+            {label:"Peso",data:data.weights.map(w=>Number(w.value)),borderColor:"#4A7FA5",backgroundColor:"rgba(74,127,165,.12)",tension:.35,fill:true,pointRadius:4},
+            {label:"Objetivo",data:data.weights.map(()=>Number(this.db.goalWeight)),borderColor:"#6ECFBA",backgroundColor:"transparent",borderDash:[6,6],tension:0,fill:false,pointRadius:0,borderWidth:2}
           ]
         },
         options:this.chartOptions("kg")
@@ -1178,15 +1033,7 @@ const app = {
     if(kmCanvas && data.weeklyKm.labels.length){
       this.charts.km = new Chart(kmCanvas,{
         type:"bar",
-        data:{
-          labels:data.weeklyKm.labels,
-          datasets:[{
-            label:"Km",
-            data:data.weeklyKm.values,
-            backgroundColor:"#6ECFBA",
-            borderRadius:8
-          }]
-        },
+        data:{labels:data.weeklyKm.labels,datasets:[{label:"Km",data:data.weeklyKm.values,backgroundColor:"#6ECFBA",borderRadius:8}]},
         options:this.chartOptions("km")
       });
     }
@@ -1195,18 +1042,7 @@ const app = {
     if(paceCanvas && data.weeklyPace.labels.length){
       this.charts.pace = new Chart(paceCanvas,{
         type:"line",
-        data:{
-          labels:data.weeklyPace.labels,
-          datasets:[{
-            label:"Ritmo promedio",
-            data:data.weeklyPace.values,
-            borderColor:"#1E3A52",
-            backgroundColor:"rgba(30,58,82,.08)",
-            tension:.35,
-            fill:true,
-            pointRadius:4
-          }]
-        },
+        data:{labels:data.weeklyPace.labels,datasets:[{label:"Ritmo promedio",data:data.weeklyPace.values,borderColor:"#1E3A52",backgroundColor:"rgba(30,58,82,.08)",tension:.35,fill:true,pointRadius:4}]},
         options:this.chartOptions("min/km")
       });
     }
@@ -1215,292 +1051,193 @@ const app = {
     if(adhCanvas && data.weeklyAdherence.labels.length){
       this.charts.adherence = new Chart(adhCanvas,{
         type:"bar",
-        data:{
-          labels:data.weeklyAdherence.labels,
-          datasets:[{
-            label:"Adherencia",
-            data:data.weeklyAdherence.values,
-            backgroundColor:"#7ABDE0",
-            borderRadius:8
-          }]
-        },
-        options:this.chartOptions("%", 100)
+        data:{labels:data.weeklyAdherence.labels,datasets:[{label:"Adherencia",data:data.weeklyAdherence.values,backgroundColor:"#7ABDE0",borderRadius:8}]},
+        options:this.chartOptions("%",100)
       });
     }
   },
 
-  chartOptions(unit, max=null){
+  chartOptions(unit,max=null){
     return {
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:(ctx)=>`${ctx.parsed.y} ${unit}`
-          }
-        }
-      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>`${ctx.parsed.y} ${unit}`}}},
       scales:{
-        x:{
-          grid:{display:false},
-          ticks:{color:"#8A9BB0", font:{size:11}}
-        },
-        y:{
-          beginAtZero:false,
-          suggestedMax:max || undefined,
-          max:max || undefined,
-          grid:{color:"rgba(138,155,176,.18)"},
-          ticks:{
-            color:"#8A9BB0",
-            font:{size:11},
-            callback:(value)=>`${value}${unit==="%" ? "%" : ""}`
-          }
-        }
+        x:{grid:{display:false},ticks:{color:"#8A9BB0",font:{size:11}}},
+        y:{beginAtZero:false,suggestedMax:max || undefined,max:max || undefined,grid:{color:"rgba(138,155,176,.18)"},ticks:{color:"#8A9BB0",font:{size:11},callback:(value)=>`${value}${unit==="%" ? "%" : ""}`}}
       }
     };
   },
 
-  renderNutricion(){
-    const n = this.db.nutrition;
+  nutritionLog(dateKey=this.dateKey()){
+    if(!this.db.nutritionLogs[dateKey]){
+      this.db.nutritionLogs[dateKey] = {
+        meals:{},
+        waterGlasses:0,
+        waterGoal:8,
+        offPlan:0,
+        alcohol:0,
+        selectedIdeas:{},
+        offPlanNotes:[]
+      };
+    }
 
+    const log = this.db.nutritionLogs[dateKey];
+    if(!log.meals) log.meals = {};
+    if(!log.selectedIdeas) log.selectedIdeas = {};
+    if(!log.offPlanNotes) log.offPlanNotes = [];
+    if(log.waterGoal == null) log.waterGoal = 8;
+    if(log.waterGlasses == null) log.waterGlasses = 0;
+    if(log.offPlan == null) log.offPlan = 0;
+    if(log.alcohol == null) log.alcohol = 0;
+
+    return log;
+  },
+
+  nutritionCompletedMeals(dateKey=this.dateKey()){
+    const log = this.nutritionLog(dateKey);
+    return this.meals.filter(m=>log.meals[m.key]).length;
+  },
+
+  nutritionScore(dateKey=this.dateKey()){
+    const log = this.nutritionLog(dateKey);
+    const mealScore = (this.nutritionCompletedMeals(dateKey) / this.meals.length) * 70;
+    const waterScore = Math.min(1,(log.waterGlasses || 0)/(log.waterGoal || 8)) * 20;
+    const penalty = Math.min(30,(Number(log.offPlan || 0)*10) + (Number(log.alcohol || 0)*15));
+    return Math.max(0,Math.round(mealScore + waterScore - penalty));
+  },
+
+  setNutritionTab(tab){
+    this.nutritionTab = tab;
+    this.renderNutricion();
+  },
+
+  setIdeaFilter(type){
+    this.ideaFilter = type;
+    this.renderNutricion();
+  },
+
+  renderNutricion(){
+    const today = this.dateKey();
     document.getElementById("nutricion").innerHTML = `
       ${this.header()}
+      <div class="nutri-top">
+        <div>
+          <div class="date">${this.today()}</div>
+          <h1 style="margin-bottom:0;">Nutrición</h1>
+        </div>
+        <div class="nutri-date">Hoy</div>
+      </div>
+
+      <div class="nutri-tabs">
+        <button class="nutri-tab ${this.nutritionTab==="registro" ? "active" : ""}" onclick="app.setNutritionTab('registro')">Registro</button>
+        <button class="nutri-tab ${this.nutritionTab==="ideas" ? "active" : ""}" onclick="app.setNutritionTab('ideas')">Ideas</button>
+        <button class="nutri-tab ${this.nutritionTab==="pauta" ? "active" : ""}" onclick="app.setNutritionTab('pauta')">Mi pauta</button>
+      </div>
+
+      ${
+        this.nutritionTab==="registro" ? this.renderNutritionRegistro(today)
+        : this.nutritionTab==="ideas" ? this.renderNutritionIdeas()
+        : this.renderNutritionPauta()
+      }
+    `;
+  },
+
+  renderNutritionRegistro(dateKey){
+    const log = this.nutritionLog(dateKey);
+    const done = this.nutritionCompletedMeals(dateKey);
+    const score = this.nutritionScore(dateKey);
+    const ideaLines = this.meals
+      .filter(m=>log.selectedIdeas[m.key])
+      .map(m=>`<div class="line"><b>${m.name}:</b> ${log.selectedIdeas[m.key]}</div>`)
+      .join("");
+
+    return `
+      <section class="card nutri-score-card">
+        <div class="nutri-score-line">
+          <div>
+            <div class="label">Score nutricional</div>
+            <div class="card-title">${done} / ${this.meals.length} comidas · Agua ${log.waterGlasses}/${log.waterGoal}</div>
+            <div class="sub">Fuera de plan: ${log.offPlan} · Alcohol: ${log.alcohol}</div>
+          </div>
+          <div class="nutri-score-number">${score}%</div>
+        </div>
+        <div class="progress"><div style="width:${score}%"></div></div>
+      </section>
 
       <section class="card">
-        <div class="label">Pauta nutricional</div>
-        <div class="card-title">${n.patientName}</div>
-        <div class="sub">${n.goal}</div>
-
-        <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Peso pauta</small><b>${n.planWeight} kg</b></div>
-          <div class="nutrition-item"><small>% graso</small><b>${n.bodyFat}%</b></div>
-          <div class="nutrition-item"><small>Kcal base</small><b>${n.base.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.base.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.base.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.base.fat} g</b></div>
+        <div class="card-head">
+          <div class="label">🍽️ Comidas</div>
+          <div class="meal-counter">${done} / ${this.meals.length}</div>
         </div>
 
-        <div class="nutrition-note">
-          Datos cargados desde pauta nutricional. Se usan como línea base para comparar peso actual y progreso.
+        ${ideaLines ? `<div class="suggested-menu"><div class="label">Menú sugerido usado hoy</div>${ideaLines}</div>` : `
+          <div class="suggested-menu">
+            <div class="label">Menú sugerido</div>
+            <div class="line"><b>D:</b> Yogurt + pan + huevos</div>
+            <div class="line"><b>A:</b> Pollo/carne + cereal + verduras</div>
+            <div class="line"><b>C:</b> Proteína + verduras + cereal controlado</div>
+          </div>
+        `}
+
+        <div class="meal-list">
+          ${this.meals.map(m=>this.renderMealRow(m,log)).join("")}
         </div>
       </section>
 
       <section class="card">
-        <div class="label">Día entrenamiento simple</div>
-        <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Kcal</small><b>${n.trainingSingle.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.trainingSingle.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.trainingSingle.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.trainingSingle.fat} g</b></div>
+        <div class="water-card">
+          <div>
+            <div class="label">💧 Agua</div>
+            <div class="water-count">${log.waterGlasses} / ${log.waterGoal} vasos</div>
+            <div class="progress"><div style="width:${Math.min(100,Math.round((log.waterGlasses/log.waterGoal)*100))}%"></div></div>
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="app.changeWater(-1)">−</button>
+            <button class="step-btn" onclick="app.changeWater(1)">+</button>
+          </div>
         </div>
       </section>
 
       <section class="card">
-        <div class="label">Día entrenamiento intenso</div>
-        <div class="nutrition-grid">
-          <div class="nutrition-item"><small>Kcal</small><b>${n.trainingIntense.calories}</b></div>
-          <div class="nutrition-item"><small>Proteína</small><b>${n.trainingIntense.protein} g</b></div>
-          <div class="nutrition-item"><small>Carbohidratos</small><b>${n.trainingIntense.carbs} g</b></div>
-          <div class="nutrition-item"><small>Grasas</small><b>${n.trainingIntense.fat} g</b></div>
+        <div class="label">Fuera de plan y alcohol</div>
+        <div class="offplan-grid" style="margin-top:12px;">
+          <div class="offplan-box">
+            <small>Comidas fuera de plan</small>
+            <b>${log.offPlan}</b>
+          </div>
+          <div class="offplan-box">
+            <small>Alcohol</small>
+            <b>${log.alcohol}</b>
+          </div>
         </div>
+        <div class="offplan-actions">
+          <button class="btn secondary" onclick="app.changeOffPlan(1)">+ Fuera plan</button>
+          <button class="btn danger" onclick="app.changeAlcohol(1)">+ Alcohol</button>
+        </div>
+        <div class="offplan-actions">
+          <button class="mini-btn" onclick="app.changeOffPlan(-1)">Quitar fuera plan</button>
+          <button class="mini-btn" onclick="app.changeAlcohol(-1)">Quitar alcohol</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="chart-head">
+          <div>
+            <div class="label">Heatmap</div>
+            <div class="card-title">Fuera de plan + alcohol</div>
+            <div class="sub">Más oscuro = más eventos registrados ese día.</div>
+          </div>
+        </div>
+        ${this.renderNutritionHeatmap()}
       </section>
     `;
   },
 
-  openWeightModal(){
-    const current = this.lastWeight() || this.db.nutrition?.planWeight || 113;
-    const goal = this.db.goalWeight || 95;
+  renderMealRow(meal,log){
+    const done = !!log.meals[meal.key];
+    const selected = log.selectedIdeas?.[meal.key] || "";
 
-    this.showModal(`
-      <div class="modal-box">
-        <div class="modal-title">Actualizar peso</div>
-        <div class="modal-subtitle">Usa las ruedas para evitar escribir puntos o comas.</div>
-
-        <div class="weight-picker-block">
-          <div class="weight-picker-label">Peso actual</div>
-          <div class="weight-picker">
-            <div class="wheel" id="currentKgWheel"></div>
-            <div class="wheel-unit">.</div>
-            <div class="wheel" id="currentDecWheel"></div>
-            <div class="wheel-unit">kg</div>
-          </div>
-        </div>
-
-        <div class="weight-picker-block">
-          <div class="weight-picker-label">Peso objetivo</div>
-          <div class="weight-picker">
-            <div class="wheel" id="goalKgWheel"></div>
-            <div class="wheel-unit">.</div>
-            <div class="wheel" id="goalDecWheel"></div>
-            <div class="wheel-unit">kg</div>
-          </div>
-        </div>
-
-        <button class="btn" onclick="app.saveWeightFromWheels()">Guardar peso</button>
-        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
-      </div>
-    `);
-
-    this.buildWeightWheel("currentKgWheel", 80, 150, Math.floor(current));
-    this.buildWeightWheel("currentDecWheel", 0, 9, Math.round((current - Math.floor(current)) * 10));
-    this.buildWeightWheel("goalKgWheel", 80, 150, Math.floor(goal));
-    this.buildWeightWheel("goalDecWheel", 0, 9, Math.round((goal - Math.floor(goal)) * 10));
-  },
-
-  buildWeightWheel(id, min, max, selected){
-    this.buildGenericWheel(id, min, max, selected);
-  },
-
-  getWheelValue(id, min){
-    return this.getGenericWheelValue(id, min);
-  },
-
-  saveWeightFromWheels(){
-    const currentKg = this.getWheelValue("currentKgWheel",80);
-    const currentDec = this.getWheelValue("currentDecWheel",0);
-    const goalKg = this.getWheelValue("goalKgWheel",80);
-    const goalDec = this.getWheelValue("goalDecWheel",0);
-
-    const current = Number(`${currentKg}.${currentDec}`);
-    const goal = Number(`${goalKg}.${goalDec}`);
-
-    if(!this.db.startWeight) this.db.startWeight = this.db.nutrition?.planWeight || current;
-
-    this.db.weights.push({
-      value:current,
-      date:new Date().toISOString()
-    });
-
-    this.db.goalWeight = goal;
-
-    this.save();
-    this.closeModal();
-    this.renderAll();
-  },
-
-  openRaceModal(){
-    const race = this.db.race || {name:"",date:"",distance:""};
-
-    this.showModal(`
-      <div class="modal-box">
-        <div class="modal-title">Carrera objetivo</div>
-        <div class="modal-subtitle">Carga tu evento para activar la cuenta regresiva.</div>
-
-        <input id="race-name" placeholder="Nombre del evento" value="${race.name || ""}">
-        <input id="race-date" type="date" value="${race.date || ""}">
-        <input id="race-distance" type="number" step="0.1" placeholder="Distancia km" value="${race.distance || ""}">
-
-        <button class="btn" onclick="app.saveRace()">Guardar carrera</button>
-        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
-      </div>
-    `);
-  },
-
-  saveRace(){
-    const name = document.getElementById("race-name").value.trim();
-    const date = document.getElementById("race-date").value;
-    const distance = document.getElementById("race-distance").value;
-
-    if(!name || !date || !distance){
-      alert("Completa nombre, fecha y distancia.");
-      return;
-    }
-
-    this.db.race = {name,date,distance:Number(distance)};
-    this.save();
-    this.closeModal();
-    this.renderAll();
-  },
-
-  openProfileModal(){
-    const p = this.db.profile;
-
-    this.showModal(`
-      <div class="modal-box compact">
-        <div class="profile-head">
-          <div class="profile-avatar">S</div>
-          <div>
-            <div class="modal-title">Perfil</div>
-            <div class="modal-subtitle">Datos personales y respaldo de información.</div>
-          </div>
-        </div>
-
-        <div class="form-grid">
-          <div class="field-label">Nombre visible</div>
-          <input id="profile-name" placeholder="Nombre visible" value="${p.userName || "Sergei"}">
-
-          <div class="field-label">Fecha de nacimiento</div>
-          <input id="profile-birth" type="date" value="${p.birthDate || ""}">
-
-          <div class="field-label">Estatura cm</div>
-          <input id="profile-height" type="number" placeholder="Estatura cm" value="${p.height || ""}">
-        </div>
-
-        <button class="btn" onclick="app.saveProfile()">Guardar perfil</button>
-
-        <div class="btn-row">
-          <button class="btn secondary" onclick="app.exportFullData()">Exportar</button>
-          <button class="btn danger" onclick="app.logout()">Cerrar sesión</button>
-        </div>
-
-        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
-      </div>
-    `);
-  },
-
-  saveProfile(){
-    this.db.profile.userName = document.getElementById("profile-name").value.trim() || "Sergei";
-    this.db.profile.birthDate = document.getElementById("profile-birth").value;
-    this.db.profile.height = document.getElementById("profile-height").value;
-
-    this.save();
-    this.closeModal();
-    this.renderAll();
-  },
-
-  exportFullData(){
-    const data = JSON.stringify(this.db, null, 2);
-    navigator.clipboard.writeText(data);
-    alert("Data completa copiada en formato JSON.");
-  },
-
-  logout(){
-    const ok = confirm("¿Cerrar sesión local? No se borrará tu data guardada.");
-    if(ok) this.closeModal();
-  },
-
-  exportCSV(){
-    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,segundos,pasos,kcal,fc,ritmo,velocidad,cadencia,zancada,diferencia_km\n";
-    this.db.sessions.forEach(s=>{
-      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.durationLabel||s.time||""},${s.timeSeconds||""},${s.steps||""},${s.kcal||""},${s.fc||s.avgHr||""},${s.pace||""},${s.speed||""},${s.cadence||""},${s.strideLength||""},${s.diffKm||""}\n`;
-    });
-
-    csv += "\nfecha,peso\n";
-    this.db.weights.forEach(w=>csv += `${w.date},${w.value}\n`);
-
-    csv += "\nPauta nutricional\n";
-    csv += `peso_pauta,${this.db.nutrition.planWeight}\n`;
-    csv += `porcentaje_graso,${this.db.nutrition.bodyFat}\n`;
-    csv += `kcal_base,${this.db.nutrition.base.calories}\n`;
-    csv += `proteina_base,${this.db.nutrition.base.protein}\n`;
-    csv += `carbohidratos_base,${this.db.nutrition.base.carbs}\n`;
-    csv += `grasas_base,${this.db.nutrition.base.fat}\n`;
-
-    navigator.clipboard.writeText(csv);
-    alert("CSV copiado");
-  },
-
-  showModal(html){
-    const modal = document.getElementById("modal");
-    modal.classList.remove("hidden");
-    modal.innerHTML = html;
-  },
-
-  closeModal(){
-    document.getElementById("modal").classList.add("hidden");
-    document.getElementById("modal").innerHTML = "";
-  }
-};
-
-window.onload = () => app.init();
+    return `
+      <div class="meal-row ${done ? "done" : ""}">
+        <div class="meal
