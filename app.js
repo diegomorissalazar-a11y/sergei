@@ -160,7 +160,36 @@ const app = {
     const paceSec = Math.round(Number(totalSeconds) / Number(km));
     const min = Math.floor(paceSec / 60);
     const sec = paceSec % 60;
-    return `${min}:${String(sec).padStart(2,"0")}`;
+    return `${min}'${String(sec).padStart(2,"0")}"/km`;
+  },
+
+  formatSpeed(totalSeconds, km){
+    if(!totalSeconds || !km) return "";
+    const hours = Number(totalSeconds) / 3600;
+    return (Number(km) / hours).toFixed(2);
+  },
+
+  normalizeRunMetrics(raw){
+    const km = Number(raw.km || 0);
+    const timeSeconds = Number(raw.timeSeconds || 0);
+    const pace = km && timeSeconds ? this.formatPace(timeSeconds, km) : "";
+    const speed = km && timeSeconds ? this.formatSpeed(timeSeconds, km) : "";
+
+    return {
+      ...raw,
+      km:raw.km || "",
+      timeSeconds,
+      durationLabel:this.formatDuration(timeSeconds),
+      time:this.formatDuration(timeSeconds),
+      pace,
+      speed,
+      kcal:raw.kcal || "",
+      steps:raw.steps || "",
+      fc:raw.fc || raw.avgHr || "",
+      avgHr:raw.fc || raw.avgHr || "",
+      cadence:raw.cadence || "",
+      strideLength:raw.strideLength || ""
+    };
   },
 
   renderInicio(){
@@ -297,24 +326,34 @@ const app = {
       return `<div class="card empty">Aún no hay entrenamientos registrados.</div>`;
     }
 
-    return this.db.sessions.slice(-5).reverse().map(s=>`
-      <section class="card train-card">
-        <div class="train-icon">${s.type==="run" ? "⚡" : "💪"}</div>
-        <div>
-          <div class="train-title">${s.type==="run" ? "Carrera" : "Fuerza"}</div>
-          <div class="sub">${this.relativeDate(s.date)}</div>
-        </div>
+    return this.db.sessions.slice(-5).reverse().map((s)=>{
+      const idx = this.db.sessions.indexOf(s);
+      return `
+        <section class="card train-card">
+          <div class="train-icon">${s.type==="run" ? "⚡" : "💪"}</div>
+          <div>
+            <div class="train-title">${s.type==="run" ? "Carrera" : "Fuerza"}</div>
+            <div class="sub">${this.relativeDate(s.date)}</div>
+          </div>
 
-        <div class="metrics">
-          <div class="metric"><b>${s.durationLabel || s.time || "-"} </b><small>Tiempo</small></div>
-          <div class="metric"><b>${s.km || "-"} km</b><small>Distancia</small></div>
-          <div class="metric"><b>${s.steps || "-"} </b><small>Pasos</small></div>
-          <div class="metric"><b>${s.fc || "-"} bpm</b><small>FC media</small></div>
-          <div class="metric"><b>${s.kcal || "-"} kcal</b><small>Calorías</small></div>
-          <div class="metric"><b>${s.pace || "-"}</b><small>Ritmo</small></div>
-        </div>
-      </section>
-    `).join("");
+          <div class="metrics">
+            <div class="metric"><b>${s.durationLabel || s.time || "-"} </b><small>Duración</small></div>
+            <div class="metric"><b>${s.km || "-"} km</b><small>Distancia</small></div>
+            <div class="metric"><b>${s.pace || "-"}</b><small>Ritmo</small></div>
+            <div class="metric"><b>${s.speed || "-"} km/h</b><small>Velocidad</small></div>
+            <div class="metric"><b>${s.steps || "-"} </b><small>Pasos</small></div>
+            <div class="metric"><b>${s.fc || s.avgHr || "-"} ppm</b><small>FC media</small></div>
+            <div class="metric"><b>${s.kcal || "-"} kcal</b><small>Calorías</small></div>
+            <div class="metric"><b>${s.cadence || "-"} </b><small>Cadencia</small></div>
+            <div class="metric"><b>${s.strideLength || "-"} cm</b><small>Zancada</small></div>
+          </div>
+
+          <div class="session-actions">
+            <button class="mini-btn" onclick="app.openEditSessionModal(${idx})">Editar</button>
+          </div>
+        </section>
+      `;
+    }).join("");
   },
 
   relativeDate(date){
@@ -359,6 +398,7 @@ const app = {
     const completed = this.findCompletedPlanSession(day.day, plan.name);
     const isDone = !!completed;
     const diff = completed?.diffKm ? Number(completed.diffKm) : null;
+    const sessionIndex = completed ? this.db.sessions.indexOf(completed) : -1;
 
     return `
       <section class="routine-card ${isDone ? "done" : ""}">
@@ -391,8 +431,8 @@ const app = {
           ✦ Carga plan: ${day.day} / Carrera ${day.km} km
         </div>
 
-        <button class="routine-action" onclick="app.openCompletePlanModal(${index})">
-          ${isDone ? "✓ COMPLETADO" : "▶ COMPLETAR"}
+        <button class="routine-action" onclick="${isDone ? `app.openEditSessionModal(${sessionIndex})` : `app.openCompletePlanModal(${index})`}">
+          ${isDone ? "EDITAR REGISTRO" : "▶ COMPLETAR"}
         </button>
       </section>
     `;
@@ -421,11 +461,13 @@ const app = {
         <input id="complete-date" type="date" value="${new Date().toISOString().slice(0,10)}">
         <input id="complete-km" type="number" step="0.1" placeholder="Distancia real km" value="${day.km}">
 
-        ${this.timeWheelHTML("complete", "Tiempo total")}
+        ${this.timeWheelHTML("complete", "Duración")}
 
         <input id="complete-steps" type="number" placeholder="Pasos">
-        <input id="complete-kcal" type="number" placeholder="Kcal">
-        <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media">
+        <input id="complete-kcal" type="number" placeholder="Calorías kcal">
+        <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
+        <input id="complete-cadence" type="number" placeholder="Cadencia promedio pasos/min">
+        <input id="complete-stride" type="number" placeholder="Zancada promedio cm">
 
         <button class="btn" onclick="app.saveCompletedPlanSession(${index})">Guardar entrenamiento</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
@@ -443,9 +485,6 @@ const app = {
 
     const km = document.getElementById("complete-km").value;
     const totalSeconds = this.getTimeFromWheels("complete");
-    const steps = document.getElementById("complete-steps").value;
-    const kcal = document.getElementById("complete-kcal").value;
-    const fc = document.getElementById("complete-fc").value;
     const date = document.getElementById("complete-date").value || new Date().toISOString().slice(0,10);
 
     if(!km || totalSeconds <= 0){
@@ -453,7 +492,7 @@ const app = {
       return;
     }
 
-    const session = {
+    const session = this.normalizeRunMetrics({
       type:"run",
       fromPlan:true,
       planName:plan.name,
@@ -461,15 +500,14 @@ const app = {
       plannedKm:day.km,
       km,
       timeSeconds:totalSeconds,
-      durationLabel:this.formatDuration(totalSeconds),
-      time:this.formatDuration(totalSeconds),
-      steps,
-      kcal,
-      fc,
+      steps:document.getElementById("complete-steps").value,
+      kcal:document.getElementById("complete-kcal").value,
+      fc:document.getElementById("complete-fc").value,
+      cadence:document.getElementById("complete-cadence").value,
+      strideLength:document.getElementById("complete-stride").value,
       date:this.dateInputToISO(date),
-      pace:this.formatPace(totalSeconds, km),
       diffKm:(Number(km) - Number(day.km)).toFixed(1)
-    };
+    });
 
     this.db.sessions.push(session);
 
@@ -477,6 +515,89 @@ const app = {
     this.closeModal();
     this.renderAll();
     this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+  },
+
+  openEditSessionModal(index){
+    const s = this.db.sessions[index];
+    if(!s) return;
+
+    const isRun = s.type === "run";
+    const totalSeconds = Number(s.timeSeconds || 0);
+    const dateValue = new Date(s.date).toISOString().slice(0,10);
+
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Editar entrenamiento</div>
+        <div class="modal-subtitle">${isRun ? "Carrera" : "Fuerza"} · ${this.relativeDate(s.date)}</div>
+
+        <input id="edit-date" type="date" value="${dateValue}">
+
+        ${isRun ? `
+          <input id="edit-km" type="number" step="0.1" placeholder="Distancia km" value="${s.km || ""}">
+        ` : ""}
+
+        ${this.timeWheelHTML("edit", "Duración")}
+
+        ${isRun ? `
+          <input id="edit-steps" type="number" placeholder="Pasos" value="${s.steps || ""}">
+        ` : ""}
+
+        <input id="edit-kcal" type="number" placeholder="Calorías kcal" value="${s.kcal || ""}">
+        <input id="edit-fc" type="number" placeholder="Frecuencia cardíaca media ppm" value="${s.fc || s.avgHr || ""}">
+
+        ${isRun ? `
+          <input id="edit-cadence" type="number" placeholder="Cadencia promedio pasos/min" value="${s.cadence || ""}">
+          <input id="edit-stride" type="number" placeholder="Zancada promedio cm" value="${s.strideLength || ""}">
+        ` : ""}
+
+        <button class="btn" onclick="app.saveEditedSession(${index})">Guardar cambios</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+
+    this.buildTimeWheels("edit", totalSeconds);
+  },
+
+  saveEditedSession(index){
+    const old = this.db.sessions[index];
+    if(!old) return;
+
+    const totalSeconds = this.getTimeFromWheels("edit");
+    const date = document.getElementById("edit-date").value || new Date().toISOString().slice(0,10);
+
+    if(totalSeconds <= 0){
+      alert("Ingresa duración.");
+      return;
+    }
+
+    let updated = {
+      ...old,
+      date:this.dateInputToISO(date),
+      timeSeconds:totalSeconds,
+      durationLabel:this.formatDuration(totalSeconds),
+      time:this.formatDuration(totalSeconds),
+      kcal:document.getElementById("edit-kcal").value,
+      fc:document.getElementById("edit-fc").value,
+      avgHr:document.getElementById("edit-fc").value
+    };
+
+    if(old.type === "run"){
+      const km = document.getElementById("edit-km").value;
+
+      updated = this.normalizeRunMetrics({
+        ...updated,
+        km,
+        steps:document.getElementById("edit-steps").value,
+        cadence:document.getElementById("edit-cadence").value,
+        strideLength:document.getElementById("edit-stride").value,
+        diffKm:old.plannedKm ? (Number(km) - Number(old.plannedKm)).toFixed(1) : ""
+      });
+    }
+
+    this.db.sessions[index] = updated;
+    this.save();
+    this.closeModal();
+    this.renderAll();
   },
 
   openFreeSessionModal(){
@@ -509,14 +630,16 @@ const app = {
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
       <input id="free-km" type="number" step="0.1" placeholder="Distancia km">
       <input id="free-steps" type="number" placeholder="Pasos">
-      ${this.timeWheelHTML("free", "Tiempo total")}
-      <input id="free-kcal" type="number" placeholder="Kcal">
-      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
+      ${this.timeWheelHTML("free", "Duración")}
+      <input id="free-kcal" type="number" placeholder="Calorías kcal">
+      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
+      <input id="free-cadence" type="number" placeholder="Cadencia promedio pasos/min">
+      <input id="free-stride" type="number" placeholder="Zancada promedio cm">
     ` : `
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
-      ${this.timeWheelHTML("free", "Tiempo total")}
-      <input id="free-kcal" type="number" placeholder="Kcal">
-      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
+      ${this.timeWheelHTML("free", "Duración")}
+      <input id="free-kcal" type="number" placeholder="Calorías kcal">
+      <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
     `;
 
     this.buildTimeWheels("free", 0);
@@ -528,11 +651,11 @@ const app = {
     const totalSeconds = this.getTimeFromWheels("free");
 
     if(totalSeconds <= 0){
-      alert("Ingresa el tiempo total.");
+      alert("Ingresa la duración.");
       return;
     }
 
-    const session = {
+    let session = {
       type,
       fromPlan:false,
       date:this.dateInputToISO(date),
@@ -540,13 +663,18 @@ const app = {
       durationLabel:this.formatDuration(totalSeconds),
       time:this.formatDuration(totalSeconds),
       kcal:document.getElementById("free-kcal").value,
-      fc:document.getElementById("free-fc").value
+      fc:document.getElementById("free-fc").value,
+      avgHr:document.getElementById("free-fc").value
     };
 
     if(type === "run"){
-      session.km = document.getElementById("free-km").value;
-      session.steps = document.getElementById("free-steps").value;
-      session.pace = session.km ? this.formatPace(totalSeconds, session.km) : "";
+      session = this.normalizeRunMetrics({
+        ...session,
+        km:document.getElementById("free-km").value,
+        steps:document.getElementById("free-steps").value,
+        cadence:document.getElementById("free-cadence").value,
+        strideLength:document.getElementById("free-stride").value
+      });
     }
 
     this.db.sessions.push(session);
@@ -1141,17 +1269,33 @@ const app = {
     const p = this.db.profile;
 
     this.showModal(`
-      <div class="modal-box">
-        <div class="modal-title">Perfil</div>
-        <div class="modal-subtitle">Configura tus datos personales y exporta tu información.</div>
+      <div class="modal-box compact">
+        <div class="profile-head">
+          <div class="profile-avatar">S</div>
+          <div>
+            <div class="modal-title">Perfil</div>
+            <div class="modal-subtitle">Datos personales y respaldo de información.</div>
+          </div>
+        </div>
 
-        <input id="profile-name" placeholder="Nombre visible" value="${p.userName || "Sergei"}">
-        <input id="profile-birth" type="date" value="${p.birthDate || ""}">
-        <input id="profile-height" type="number" placeholder="Estatura cm" value="${p.height || ""}">
+        <div class="form-grid">
+          <div class="field-label">Nombre visible</div>
+          <input id="profile-name" placeholder="Nombre visible" value="${p.userName || "Sergei"}">
+
+          <div class="field-label">Fecha de nacimiento</div>
+          <input id="profile-birth" type="date" value="${p.birthDate || ""}">
+
+          <div class="field-label">Estatura cm</div>
+          <input id="profile-height" type="number" placeholder="Estatura cm" value="${p.height || ""}">
+        </div>
 
         <button class="btn" onclick="app.saveProfile()">Guardar perfil</button>
-        <button class="btn secondary" onclick="app.exportFullData()">Exportar data completa</button>
-        <button class="btn danger" onclick="app.logout()">Cerrar sesión</button>
+
+        <div class="btn-row">
+          <button class="btn secondary" onclick="app.exportFullData()">Exportar</button>
+          <button class="btn danger" onclick="app.logout()">Cerrar sesión</button>
+        </div>
+
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
@@ -1179,9 +1323,9 @@ const app = {
   },
 
   exportCSV(){
-    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,segundos,pasos,kcal,fc,ritmo,diferencia_km\n";
+    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,segundos,pasos,kcal,fc,ritmo,velocidad,cadencia,zancada,diferencia_km\n";
     this.db.sessions.forEach(s=>{
-      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.durationLabel||s.time||""},${s.timeSeconds||""},${s.steps||""},${s.kcal||""},${s.fc||""},${s.pace||""},${s.diffKm||""}\n`;
+      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.durationLabel||s.time||""},${s.timeSeconds||""},${s.steps||""},${s.kcal||""},${s.fc||s.avgHr||""},${s.pace||""},${s.speed||""},${s.cadence||""},${s.strideLength||""},${s.diffKm||""}\n`;
     });
 
     csv += "\nfecha,peso\n";
