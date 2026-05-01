@@ -5,6 +5,27 @@ const app = {
       birthDate:"",
       height:""
     },
+    nutrition:{
+      source:"25-03 Programa Nutricional - Sergio Espinoza MARATON 2025.pdf",
+      planName:"Plan Alimentario Nutricional",
+      athleteName:"Sergio Espinoza",
+      age:31,
+      baselineWeight:113,
+      bodyFatPercent:24.94,
+      objective:"Maratón STGO · Recomposición corporal · disminución % graso · rendimiento running",
+      baseCalories:1898,
+      baseCarbs:235,
+      baseFat:43,
+      baseProtein:143,
+      trainingDayCalories:1878,
+      trainingDayCarbs:222,
+      trainingDayFat:42,
+      trainingDayProtein:153,
+      intenseDayCalories:2335,
+      intenseDayCarbs:265,
+      intenseDayFat:71,
+      intenseDayProtein:153
+    },
     goalWeight:95,
     startWeight:null,
     weights:[],
@@ -18,7 +39,39 @@ const app = {
 
   init(){
     this.load();
+    this.ensureNutritionDefaults();
     this.renderAll();
+  },
+
+  ensureNutritionDefaults(){
+    const defaults = {
+      source:"25-03 Programa Nutricional - Sergio Espinoza MARATON 2025.pdf",
+      planName:"Plan Alimentario Nutricional",
+      athleteName:"Sergio Espinoza",
+      age:31,
+      baselineWeight:113,
+      bodyFatPercent:24.94,
+      objective:"Maratón STGO · Recomposición corporal · disminución % graso · rendimiento running",
+      baseCalories:1898,
+      baseCarbs:235,
+      baseFat:43,
+      baseProtein:143,
+      trainingDayCalories:1878,
+      trainingDayCarbs:222,
+      trainingDayFat:42,
+      trainingDayProtein:153,
+      intenseDayCalories:2335,
+      intenseDayCarbs:265,
+      intenseDayFat:71,
+      intenseDayProtein:153
+    };
+
+    this.db.nutrition = {
+      ...defaults,
+      ...(this.db.nutrition || {})
+    };
+
+    this.save();
   },
 
   save(){
@@ -32,7 +85,8 @@ const app = {
       this.db = {
         ...this.db,
         ...parsed,
-        profile:{...this.db.profile, ...(parsed.profile || {})}
+        profile:{...this.db.profile, ...(parsed.profile || {})},
+        nutrition:{...this.db.nutrition, ...(parsed.nutrition || {})}
       };
     }
   },
@@ -80,6 +134,13 @@ const app = {
 
   lastWeight(){
     return this.db.weights.length ? this.db.weights[this.db.weights.length-1].value : null;
+  },
+
+  baselineDiff(){
+    const current = this.lastWeight();
+    const baseline = Number(this.db.nutrition?.baselineWeight || 0);
+    if(!current || !baseline) return null;
+    return Number((current - baseline).toFixed(1));
   },
 
   weekSessions(){
@@ -263,6 +324,7 @@ const app = {
     const activePlan = this.activePlan();
     const dueDays = this.planDueDaysUntilToday();
     const doneDue = this.completedDuePlanDays();
+    const baselineDiff = this.baselineDiff();
 
     document.getElementById("inicio").innerHTML = `
       ${this.header()}
@@ -316,6 +378,11 @@ const app = {
               <div><b class="green">${lost}kg</b><br><small>Perdidos</small></div>
               <div><b class="blue">${missing}kg</b><br><small>Faltan</small></div>
             </div>
+
+            <div class="sub" style="margin-top:10px;">
+              Peso pauta nutricional: ${this.db.nutrition.baselineWeight} kg
+              ${baselineDiff !== null ? ` · Desde pauta: ${baselineDiff > 0 ? "+" : ""}${baselineDiff} kg` : ""}
+            </div>
           </div>
 
           <div class="goal-box">
@@ -325,6 +392,8 @@ const app = {
           </div>
         </div>
       </section>
+
+      ${this.renderNutritionCard()}
 
       ${this.renderRaceCard()}
 
@@ -341,6 +410,30 @@ const app = {
       </div>
 
       ${this.renderLastSessions()}
+    `;
+  },
+
+  renderNutritionCard(){
+    const n = this.db.nutrition;
+
+    return `
+      <section class="card nutrition-card">
+        <div class="card-head">
+          <div>
+            <div class="label">Pauta nutricional</div>
+            <div class="card-title">${n.planName}</div>
+            <div class="sub">${n.objective}</div>
+          </div>
+          <button class="pill light" onclick="app.openNutritionModal()">Editar</button>
+        </div>
+
+        <div class="nutrition-grid">
+          <div class="nutri-mini"><b>${n.baselineWeight} kg</b><span>Peso pauta</span></div>
+          <div class="nutri-mini"><b>${n.bodyFatPercent}%</b><span>% graso</span></div>
+          <div class="nutri-mini"><b>${n.baseCalories}</b><span>Kcal base</span></div>
+          <div class="nutri-mini"><b>${n.baseProtein} g</b><span>Proteína</span></div>
+        </div>
+      </section>
     `;
   },
 
@@ -908,6 +1001,7 @@ const app = {
 
   renderProgress(){
     const data = this.getProgressData();
+    const baselineDiff = this.baselineDiff();
 
     document.getElementById("progreso").innerHTML = `
       ${this.header()}
@@ -926,8 +1020,8 @@ const app = {
           <div class="kpi-value">${data.currentWeight || "--"} kg</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Km semana</div>
-          <div class="kpi-value">${this.totalKmWeek().toFixed(1)}</div>
+          <div class="kpi-label">Desde pauta</div>
+          <div class="kpi-value">${baselineDiff !== null ? `${baselineDiff > 0 ? "+" : ""}${baselineDiff}` : "--"} kg</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Mejor ritmo</div>
@@ -937,6 +1031,12 @@ const app = {
           <div class="kpi-label">Adh. semana</div>
           <div class="kpi-value">${this.weeklyAdherence()}%</div>
         </div>
+      </section>
+
+      <section class="card nutrition-card">
+        <div class="label">Pauta nutricional</div>
+        <div class="card-title">${this.db.nutrition.baseCalories} kcal base · ${this.db.nutrition.baseProtein} g proteína</div>
+        <div class="sub">CHO ${this.db.nutrition.baseCarbs} g · Grasas ${this.db.nutrition.baseFat} g · Peso pauta ${this.db.nutrition.baselineWeight} kg</div>
       </section>
 
       <section class="chart-card">
@@ -1131,6 +1231,17 @@ const app = {
               fill:false,
               pointRadius:0,
               borderWidth:2
+            },
+            {
+              label:"Peso pauta",
+              data:data.weights.map(()=>Number(this.db.nutrition.baselineWeight)),
+              borderColor:"#8A9BB0",
+              backgroundColor:"transparent",
+              borderDash:[2,6],
+              tension:0,
+              fill:false,
+              pointRadius:0,
+              borderWidth:2
             }
           ]
         },
@@ -1201,7 +1312,7 @@ const app = {
         legend:{display:false},
         tooltip:{
           callbacks:{
-            label:(ctx)=>`${ctx.parsed.y} ${unit}`
+            label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.y} ${unit}`
           }
         }
       },
@@ -1330,6 +1441,51 @@ const app = {
     this.renderAll();
   },
 
+  openNutritionModal(){
+    const n = this.db.nutrition;
+
+    this.showModal(`
+      <div class="modal-box compact">
+        <div class="modal-title">Pauta nutricional</div>
+        <div class="modal-subtitle">Datos base cargados desde la pauta PDF.</div>
+
+        <div class="field-label">Peso pauta kg</div>
+        <input id="nutri-weight" type="number" step="0.1" value="${n.baselineWeight || ""}">
+
+        <div class="field-label">% graso pauta</div>
+        <input id="nutri-fat-percent" type="number" step="0.01" value="${n.bodyFatPercent || ""}">
+
+        <div class="field-label">Kcal base</div>
+        <input id="nutri-kcal" type="number" value="${n.baseCalories || ""}">
+
+        <div class="field-label">Carbohidratos g</div>
+        <input id="nutri-carbs" type="number" value="${n.baseCarbs || ""}">
+
+        <div class="field-label">Grasas g</div>
+        <input id="nutri-fat" type="number" value="${n.baseFat || ""}">
+
+        <div class="field-label">Proteína g</div>
+        <input id="nutri-protein" type="number" value="${n.baseProtein || ""}">
+
+        <button class="btn" onclick="app.saveNutrition()">Guardar pauta</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  saveNutrition(){
+    this.db.nutrition.baselineWeight = Number(document.getElementById("nutri-weight").value || 0);
+    this.db.nutrition.bodyFatPercent = Number(document.getElementById("nutri-fat-percent").value || 0);
+    this.db.nutrition.baseCalories = Number(document.getElementById("nutri-kcal").value || 0);
+    this.db.nutrition.baseCarbs = Number(document.getElementById("nutri-carbs").value || 0);
+    this.db.nutrition.baseFat = Number(document.getElementById("nutri-fat").value || 0);
+    this.db.nutrition.baseProtein = Number(document.getElementById("nutri-protein").value || 0);
+
+    this.save();
+    this.closeModal();
+    this.renderAll();
+  },
+
   openProfileModal(){
     const p = this.db.profile;
 
@@ -1396,6 +1552,14 @@ const app = {
     csv += "\nfecha,peso\n";
     this.db.weights.forEach(w=>csv += `${w.date},${w.value}\n`);
 
+    csv += "\nPAUTA_NUTRICIONAL\n";
+    csv += `peso_pauta,${this.db.nutrition.baselineWeight}\n`;
+    csv += `porcentaje_graso,${this.db.nutrition.bodyFatPercent}\n`;
+    csv += `kcal_base,${this.db.nutrition.baseCalories}\n`;
+    csv += `carbohidratos_base,${this.db.nutrition.baseCarbs}\n`;
+    csv += `grasas_base,${this.db.nutrition.baseFat}\n`;
+    csv += `proteina_base,${this.db.nutrition.baseProtein}\n`;
+
     navigator.clipboard.writeText(csv);
     alert("CSV copiado");
   },
@@ -1407,9 +1571,4 @@ const app = {
   },
 
   closeModal(){
-    document.getElementById("modal").classList.add("hidden");
-    document.getElementById("modal").innerHTML = "";
-  }
-};
-
-window.onload = () => app.init();
+    document.getElementBy
