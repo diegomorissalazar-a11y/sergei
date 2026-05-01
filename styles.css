@@ -562,7 +562,12 @@ input,select{
   font-size:16px;
 }
 
-.routine-card.done .routine-action{
+.routine-action:disabled{
+  opacity:1;
+  cursor:default;
+}
+
+.routine-action.done-action{
   background:linear-gradient(135deg,#12A150,#34C759);
 }
 
