@@ -66,6 +66,12 @@ const app = {
     return new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
   },
 
+  dateInputToISO(dateString){
+    if(!dateString) return new Date().toISOString();
+    const [y,m,d] = dateString.split("-").map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+  },
+
   lastWeight(){
     return this.db.weights.length ? this.db.weights[this.db.weights.length-1].value : null;
   },
@@ -133,6 +139,22 @@ const app = {
 
     const diff = Math.ceil((raceDate - today) / 86400000);
     return Math.max(0, diff);
+  },
+
+  formatDuration(seconds){
+    seconds = Number(seconds || 0);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  },
+
+  formatPace(totalSeconds, km){
+    if(!totalSeconds || !km) return "";
+    const paceSec = Math.round(Number(totalSeconds) / Number(km));
+    const min = Math.floor(paceSec / 60);
+    const sec = paceSec % 60;
+    return `${min}:${String(sec).padStart(2,"0")}`;
   },
 
   renderInicio(){
@@ -278,7 +300,7 @@ const app = {
         </div>
 
         <div class="metrics">
-          <div class="metric"><b>${s.time || "-"} min</b><small>Tiempo</small></div>
+          <div class="metric"><b>${s.durationLabel || s.time || "-"} </b><small>Tiempo</small></div>
           <div class="metric"><b>${s.km || "-"} km</b><small>Distancia</small></div>
           <div class="metric"><b>${s.steps || "-"} </b><small>Pasos</small></div>
           <div class="metric"><b>${s.fc || "-"} bpm</b><small>FC media</small></div>
@@ -311,7 +333,7 @@ const app = {
         + SESIÓN LIBRE
       </button>
 
-      <div class="label" style="margin-bottom:10px;">Mis rutinas</div>
+      <div class="label" style="margin-bottom:14px;">Mis rutinas</div>
 
       ${
         activePlan && activePlan.days.length
@@ -330,25 +352,33 @@ const app = {
   renderRoutineCard(day, index, plan){
     const completed = this.findCompletedPlanSession(day.day, plan.name);
     const isDone = !!completed;
+    const diff = completed?.diffKm ? Number(completed.diffKm) : null;
 
     return `
       <section class="routine-card ${isDone ? "done" : ""}">
         <div class="routine-body">
-          <div class="routine-kicker">
-            <span class="routine-number">${index + 1}</span>
-            ${isDone ? "Completada" : "Planificada"}
-          </div>
+          <div class="routine-header">
+            <div class="routine-number">${index + 1}</div>
 
-          <div class="routine-title">${day.day} — Carrera</div>
-          <div class="routine-sub">Objetivo: ${day.km} km · ${plan.name}</div>
+            <div>
+              <div class="routine-title">${day.day} — Carrera</div>
+              <div class="routine-sub">Objetivo: ${day.km} km · ${plan.name}</div>
+            </div>
+
+            ${isDone ? `<div class="routine-status">✓ COMPLETADO</div>` : `<div class="dots">...</div>`}
+          </div>
 
           <div class="routine-tags">
-            <span class="tag plan">Carrera / ${day.km} km</span>
-            <span class="tag">Plan activo</span>
-            ${isDone ? `<span class="tag plan">${completed.km || "-"} km reales</span>` : ""}
+            <span class="tag plan">👟 Carrera</span>
+            <span class="tag">${day.km} km</span>
+            <span class="tag blue-tag">⏱ Tiempo con rueda</span>
+            <span class="tag">📊 ${plan.name}</span>
           </div>
 
-          ${isDone ? `<div class="completed-pill">✓ Entrenamiento completado</div>` : ""}
+          ${isDone ? `
+            <div class="completed-pill">✓ Entrenamiento completado</div>
+            ${diff !== null ? `<div class="diff-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(1)} km vs plan</div>` : ""}
+          ` : ""}
         </div>
 
         <div class="routine-note">
@@ -384,7 +414,9 @@ const app = {
 
         <input id="complete-date" type="date" value="${new Date().toISOString().slice(0,10)}">
         <input id="complete-km" type="number" step="0.1" placeholder="Distancia real km" value="${day.km}">
-        <input id="complete-time" type="number" placeholder="Tiempo total min">
+
+        ${this.timeWheelHTML("complete", "Tiempo total")}
+
         <input id="complete-steps" type="number" placeholder="Pasos">
         <input id="complete-kcal" type="number" placeholder="Kcal">
         <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media">
@@ -393,6 +425,8 @@ const app = {
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
+
+    this.buildTimeWheels("complete", 0);
   },
 
   saveCompletedPlanSession(index){
@@ -402,14 +436,14 @@ const app = {
     const day = plan.days[index];
 
     const km = document.getElementById("complete-km").value;
-    const time = document.getElementById("complete-time").value;
+    const totalSeconds = this.getTimeFromWheels("complete");
     const steps = document.getElementById("complete-steps").value;
     const kcal = document.getElementById("complete-kcal").value;
     const fc = document.getElementById("complete-fc").value;
     const date = document.getElementById("complete-date").value || new Date().toISOString().slice(0,10);
 
-    if(!km || !time){
-      alert("Ingresa al menos distancia y tiempo.");
+    if(!km || totalSeconds <= 0){
+      alert("Ingresa distancia y tiempo.");
       return;
     }
 
@@ -420,13 +454,15 @@ const app = {
       planDay:day.day,
       plannedKm:day.km,
       km,
-      time,
+      timeSeconds:totalSeconds,
+      durationLabel:this.formatDuration(totalSeconds),
+      time:this.formatDuration(totalSeconds),
       steps,
       kcal,
       fc,
-      date:new Date(date).toISOString(),
-      pace: km && time ? (Number(time) / Number(km)).toFixed(2) : "",
-      diffKm: (Number(km) - Number(day.km)).toFixed(1)
+      date:this.dateInputToISO(date),
+      pace:this.formatPace(totalSeconds, km),
+      diffKm:(Number(km) - Number(day.km)).toFixed(1)
     };
 
     this.db.sessions.push(session);
@@ -467,26 +503,36 @@ const app = {
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
       <input id="free-km" type="number" step="0.1" placeholder="Distancia km">
       <input id="free-steps" type="number" placeholder="Pasos">
-      <input id="free-time" type="number" placeholder="Tiempo total min">
+      ${this.timeWheelHTML("free", "Tiempo total")}
       <input id="free-kcal" type="number" placeholder="Kcal">
       <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
     ` : `
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
-      <input id="free-time" type="number" placeholder="Tiempo total min">
+      ${this.timeWheelHTML("free", "Tiempo total")}
       <input id="free-kcal" type="number" placeholder="Kcal">
       <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media">
     `;
+
+    this.buildTimeWheels("free", 0);
   },
 
   saveFreeSession(){
     const type = document.getElementById("free-type").value;
     const date = document.getElementById("free-date").value || new Date().toISOString().slice(0,10);
+    const totalSeconds = this.getTimeFromWheels("free");
+
+    if(totalSeconds <= 0){
+      alert("Ingresa el tiempo total.");
+      return;
+    }
 
     const session = {
       type,
       fromPlan:false,
-      date:new Date(date).toISOString(),
-      time:document.getElementById("free-time").value,
+      date:this.dateInputToISO(date),
+      timeSeconds:totalSeconds,
+      durationLabel:this.formatDuration(totalSeconds),
+      time:this.formatDuration(totalSeconds),
       kcal:document.getElementById("free-kcal").value,
       fc:document.getElementById("free-fc").value
     };
@@ -494,9 +540,7 @@ const app = {
     if(type === "run"){
       session.km = document.getElementById("free-km").value;
       session.steps = document.getElementById("free-steps").value;
-      session.pace = session.km && session.time
-        ? (Number(session.time) / Number(session.km)).toFixed(2)
-        : "";
+      session.pace = session.km ? this.formatPace(totalSeconds, session.km) : "";
     }
 
     this.db.sessions.push(session);
@@ -505,6 +549,62 @@ const app = {
     this.closeModal();
     this.renderAll();
     this.go("entrenamiento", document.querySelectorAll(".tab")[1]);
+  },
+
+  timeWheelHTML(prefix, label){
+    return `
+      <div class="time-picker-block">
+        <div class="time-picker-label">${label}</div>
+        <div class="time-picker">
+          <div class="wheel" id="${prefix}HourWheel"></div>
+          <div class="wheel-unit">h</div>
+          <div class="wheel" id="${prefix}MinuteWheel"></div>
+          <div class="wheel-unit">m</div>
+          <div class="wheel" id="${prefix}SecondWheel"></div>
+          <div class="wheel-unit">s</div>
+        </div>
+      </div>
+    `;
+  },
+
+  buildTimeWheels(prefix, totalSeconds=0){
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    this.buildGenericWheel(`${prefix}HourWheel`, 0, 10, h);
+    this.buildGenericWheel(`${prefix}MinuteWheel`, 0, 59, m);
+    this.buildGenericWheel(`${prefix}SecondWheel`, 0, 59, s);
+  },
+
+  buildGenericWheel(id, min, max, selected){
+    const el = document.getElementById(id);
+    if(!el) return;
+
+    el.innerHTML = "";
+
+    for(let i=min; i<=max; i++){
+      const item = document.createElement("div");
+      item.className = "wheel-item";
+      item.textContent = String(i).padStart(2,"0");
+      el.appendChild(item);
+    }
+
+    setTimeout(()=>{
+      el.scrollTop = (selected - min) * 42;
+    }, 30);
+  },
+
+  getGenericWheelValue(id, min){
+    const el = document.getElementById(id);
+    return min + Math.round(el.scrollTop / 42);
+  },
+
+  getTimeFromWheels(prefix){
+    const h = this.getGenericWheelValue(`${prefix}HourWheel`,0);
+    const m = this.getGenericWheelValue(`${prefix}MinuteWheel`,0);
+    const s = this.getGenericWheelValue(`${prefix}SecondWheel`,0);
+    return (h * 3600) + (m * 60) + s;
   },
 
   renderPlan(){
@@ -670,24 +770,11 @@ const app = {
   },
 
   buildWeightWheel(id, min, max, selected){
-    const el = document.getElementById(id);
-    el.innerHTML = "";
-
-    for(let i=min; i<=max; i++){
-      const item = document.createElement("div");
-      item.className = "wheel-item";
-      item.textContent = i;
-      el.appendChild(item);
-    }
-
-    setTimeout(()=>{
-      el.scrollTop = (selected - min) * 42;
-    }, 30);
+    this.buildGenericWheel(id, min, max, selected);
   },
 
   getWheelValue(id, min){
-    const el = document.getElementById(id);
-    return min + Math.round(el.scrollTop / 42);
+    return this.getGenericWheelValue(id, min);
   },
 
   saveWeightFromWheels(){
@@ -789,9 +876,9 @@ const app = {
   },
 
   exportCSV(){
-    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,pasos,kcal,fc,ritmo,diferencia_km\n";
+    let csv = "tipo,fecha,plan,plan_dia,km_plan,km_real,tiempo,segundos,pasos,kcal,fc,ritmo,diferencia_km\n";
     this.db.sessions.forEach(s=>{
-      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.time||""},${s.steps||""},${s.kcal||""},${s.fc||""},${s.pace||""},${s.diffKm||""}\n`;
+      csv += `${s.type},${s.date},${s.planName||""},${s.planDay||""},${s.plannedKm||""},${s.km||""},${s.durationLabel||s.time||""},${s.timeSeconds||""},${s.steps||""},${s.kcal||""},${s.fc||""},${s.pace||""},${s.diffKm||""}\n`;
     });
 
     csv += "\nfecha,peso\n";
