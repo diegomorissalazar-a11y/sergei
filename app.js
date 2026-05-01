@@ -13,6 +13,9 @@ const app = {
     race:null
   },
 
+  charts:{},
+  progressRange:"4",
+
   init(){
     this.load();
     this.renderAll();
@@ -41,7 +44,10 @@ const app = {
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     if(el) el.classList.add("active");
 
-    if(id === "progreso") this.renderProgress();
+    if(id === "progreso"){
+      this.renderProgress();
+      setTimeout(()=>this.drawProgressCharts(),80);
+    }
   },
 
   header(){
@@ -714,19 +720,316 @@ const app = {
     this.renderAll();
   },
 
+  setProgressRange(range){
+    this.progressRange = range;
+    this.renderProgress();
+    setTimeout(()=>this.drawProgressCharts(),80);
+  },
+
   renderProgress(){
+    const data = this.getProgressData();
+
     document.getElementById("progreso").innerHTML = `
       ${this.header()}
 
-      <section class="card">
-        <div class="label">Resumen</div>
-        <div class="metrics">
-          <div class="metric"><b>${this.db.weights.length}</b><small>Pesos</small></div>
-          <div class="metric"><b>${this.db.sessions.length}</b><small>Entrenos</small></div>
-          <div class="metric"><b>${this.totalKmWeek().toFixed(1)}</b><small>Km semana</small></div>
+      <div class="range-filter">
+        ${["4","6","8","all"].map(r=>`
+          <button class="range-btn ${this.progressRange===r ? "active" : ""}" onclick="app.setProgressRange('${r}')">
+            ${r==="all" ? "Todo" : r+" sem"}
+          </button>
+        `).join("")}
+      </div>
+
+      <section class="progress-kpis">
+        <div class="kpi-card">
+          <div class="kpi-label">Peso actual</div>
+          <div class="kpi-value">${data.currentWeight || "--"} kg</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Km semana</div>
+          <div class="kpi-value">${this.totalKmWeek().toFixed(1)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Mejor ritmo</div>
+          <div class="kpi-value">${data.bestPace || "--"}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Adherencia</div>
+          <div class="kpi-value">${this.adherence()}%</div>
         </div>
       </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Peso histórico</div>
+          <div class="sub">${data.weights.length} registros</div>
+        </div>
+        ${data.weights.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay datos suficientes de peso.</div>`}
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Km semanales</div>
+          <div class="sub">Carga de entrenamiento</div>
+        </div>
+        ${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay entrenamientos con distancia.</div>`}
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Ritmo promedio</div>
+          <div class="sub">min/km por semana</div>
+        </div>
+        ${data.weeklyPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay datos de ritmo.</div>`}
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Adherencia semanal</div>
+          <div class="sub">plan vs completado</div>
+        </div>
+        ${data.weeklyAdherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa entrenamientos para ver adherencia.</div>`}
+      </section>
     `;
+
+    setTimeout(()=>this.drawProgressCharts(),80);
+  },
+
+  getProgressData(){
+    const since = this.getRangeStartDate();
+
+    const sessions = this.db.sessions.filter(s => {
+      if(!since) return true;
+      return new Date(s.date) >= since;
+    });
+
+    const weights = this.db.weights.filter(w => {
+      if(!since) return true;
+      return new Date(w.date) >= since;
+    });
+
+    const runs = sessions.filter(s => s.type === "run" && Number(s.km) > 0);
+
+    const bestPaceSession = runs
+      .filter(s => s.timeSeconds && s.km)
+      .sort((a,b)=>(Number(a.timeSeconds)/Number(a.km)) - (Number(b.timeSeconds)/Number(b.km)))[0];
+
+    return {
+      sessions,
+      weights,
+      currentWeight:this.lastWeight(),
+      bestPace: bestPaceSession ? bestPaceSession.pace : "",
+      weeklyKm:this.weeklyKmSeries(sessions),
+      weeklyPace:this.weeklyPaceSeries(sessions),
+      weeklyAdherence:this.weeklyAdherenceSeries(sessions)
+    };
+  },
+
+  getRangeStartDate(){
+    if(this.progressRange === "all") return null;
+    const weeks = Number(this.progressRange || 4);
+    const d = new Date();
+    d.setDate(d.getDate() - weeks * 7);
+    d.setHours(0,0,0,0);
+    return d;
+  },
+
+  weekStart(date){
+    const d = new Date(date);
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
+    d.setHours(0,0,0,0);
+    return d;
+  },
+
+  weekLabel(date){
+    const d = this.weekStart(date);
+    return d.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
+  },
+
+  weeklyKmSeries(sessions){
+    const map = {};
+
+    sessions.forEach(s=>{
+      const km = Number(s.km || 0);
+      if(!km) return;
+
+      const key = this.weekLabel(s.date);
+      map[key] = (map[key] || 0) + km;
+    });
+
+    return {
+      labels:Object.keys(map),
+      values:Object.values(map).map(v=>Number(v.toFixed(1)))
+    };
+  },
+
+  weeklyPaceSeries(sessions){
+    const map = {};
+
+    sessions.forEach(s=>{
+      if(!s.timeSeconds || !s.km) return;
+
+      const key = this.weekLabel(s.date);
+      if(!map[key]) map[key] = {seconds:0, km:0};
+
+      map[key].seconds += Number(s.timeSeconds);
+      map[key].km += Number(s.km);
+    });
+
+    const labels = Object.keys(map);
+    const values = labels.map(k=>{
+      const paceSec = map[k].seconds / map[k].km;
+      return Number((paceSec / 60).toFixed(2));
+    });
+
+    return {labels, values};
+  },
+
+  weeklyAdherenceSeries(sessions){
+    const activePlan = this.activePlan();
+    if(!activePlan || !activePlan.days.length) return {labels:[], values:[]};
+
+    const map = {};
+
+    sessions
+      .filter(s=>s.fromPlan && s.planName === activePlan.name)
+      .forEach(s=>{
+        const key = this.weekLabel(s.date);
+        if(!map[key]) map[key] = new Set();
+        map[key].add(s.planDay);
+      });
+
+    const labels = Object.keys(map);
+    const values = labels.map(k=>{
+      return Math.round((map[k].size / activePlan.days.length) * 100);
+    });
+
+    return {labels, values};
+  },
+
+  destroyChart(name){
+    if(this.charts[name]){
+      this.charts[name].destroy();
+      this.charts[name] = null;
+    }
+  },
+
+  drawProgressCharts(){
+    if(typeof Chart === "undefined") return;
+
+    const data = this.getProgressData();
+
+    this.destroyChart("weight");
+    this.destroyChart("km");
+    this.destroyChart("pace");
+    this.destroyChart("adherence");
+
+    const weightCanvas = document.getElementById("chartWeight");
+    if(weightCanvas && data.weights.length){
+      this.charts.weight = new Chart(weightCanvas,{
+        type:"line",
+        data:{
+          labels:data.weights.map(w=>new Date(w.date).toLocaleDateString("es-CL",{day:"2-digit",month:"short"})),
+          datasets:[{
+            label:"Peso",
+            data:data.weights.map(w=>Number(w.value)),
+            borderColor:"#4A7FA5",
+            backgroundColor:"rgba(74,127,165,.12)",
+            tension:.35,
+            fill:true,
+            pointRadius:4
+          }]
+        },
+        options:this.chartOptions("kg")
+      });
+    }
+
+    const kmCanvas = document.getElementById("chartKm");
+    if(kmCanvas && data.weeklyKm.labels.length){
+      this.charts.km = new Chart(kmCanvas,{
+        type:"bar",
+        data:{
+          labels:data.weeklyKm.labels,
+          datasets:[{
+            label:"Km",
+            data:data.weeklyKm.values,
+            backgroundColor:"#6ECFBA",
+            borderRadius:8
+          }]
+        },
+        options:this.chartOptions("km")
+      });
+    }
+
+    const paceCanvas = document.getElementById("chartPace");
+    if(paceCanvas && data.weeklyPace.labels.length){
+      this.charts.pace = new Chart(paceCanvas,{
+        type:"line",
+        data:{
+          labels:data.weeklyPace.labels,
+          datasets:[{
+            label:"Ritmo promedio",
+            data:data.weeklyPace.values,
+            borderColor:"#1E3A52",
+            backgroundColor:"rgba(30,58,82,.08)",
+            tension:.35,
+            fill:true,
+            pointRadius:4
+          }]
+        },
+        options:this.chartOptions("min/km")
+      });
+    }
+
+    const adhCanvas = document.getElementById("chartAdherence");
+    if(adhCanvas && data.weeklyAdherence.labels.length){
+      this.charts.adherence = new Chart(adhCanvas,{
+        type:"bar",
+        data:{
+          labels:data.weeklyAdherence.labels,
+          datasets:[{
+            label:"Adherencia",
+            data:data.weeklyAdherence.values,
+            backgroundColor:"#7ABDE0",
+            borderRadius:8
+          }]
+        },
+        options:this.chartOptions("%", 100)
+      });
+    }
+  },
+
+  chartOptions(unit, max=null){
+    return {
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:(ctx)=>`${ctx.parsed.y} ${unit}`
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{display:false},
+          ticks:{color:"#8A9BB0", font:{size:11}}
+        },
+        y:{
+          beginAtZero:false,
+          suggestedMax:max || undefined,
+          max:max || undefined,
+          grid:{color:"rgba(138,155,176,.18)"},
+          ticks:{
+            color:"#8A9BB0",
+            font:{size:11},
+            callback:(value)=>`${value}${unit==="%" ? "%" : ""}`
+          }
+        }
+      }
+    };
   },
 
   openWeightModal(){
