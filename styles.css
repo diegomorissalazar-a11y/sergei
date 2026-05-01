@@ -580,6 +580,93 @@ input,select{
   color:var(--danger);
 }
 
+/* ===== PROGRESO ===== */
+
+.range-filter{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.range-btn{
+  border:1px solid var(--line);
+  background:white;
+  color:var(--navy);
+  border-radius:12px;
+  padding:10px 6px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.range-btn.active{
+  background:var(--navy);
+  color:white;
+  border-color:var(--navy);
+}
+
+.progress-kpis{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.kpi-card{
+  background:white;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+}
+
+.kpi-card .kpi-label{
+  font-size:10px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--muted);
+  font-weight:800;
+}
+
+.kpi-card .kpi-value{
+  font-size:26px;
+  font-weight:950;
+  color:var(--navy);
+  margin-top:6px;
+}
+
+.chart-card{
+  background:white;
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:14px;
+  border:1px solid var(--line);
+}
+
+.chart-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.chart-title{
+  font-size:15px;
+  font-weight:950;
+  color:var(--navy);
+}
+
+.chart-box{
+  height:230px;
+  position:relative;
+}
+
+.chart-empty{
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  padding:34px 12px;
+}
+
 /* ===== MODAL + WHEELS ===== */
 
 .modal{
