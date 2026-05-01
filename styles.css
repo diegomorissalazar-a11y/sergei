@@ -284,6 +284,40 @@ h1{
   font-size:11px;
 }
 
+.nutrition-card{
+  background:linear-gradient(135deg,#FFFFFF 0%,#F3FFFB 100%);
+  border:1px solid rgba(110,207,186,.45);
+}
+
+.nutrition-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-top:14px;
+}
+
+.nutri-mini{
+  background:white;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+}
+
+.nutri-mini b{
+  display:block;
+  font-size:20px;
+  color:var(--navy);
+  font-weight:950;
+}
+
+.nutri-mini span{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1.6px;
+  font-weight:800;
+}
+
 .section-head{
   display:flex;
   justify-content:space-between;
