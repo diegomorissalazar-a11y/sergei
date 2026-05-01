@@ -101,7 +101,56 @@ const app = {
     return this.db.plans[this.db.plans.length - 1];
   },
 
-  adherence(){
+  dayNumber(dayName){
+    const map = {
+      "lunes":1,
+      "martes":2,
+      "miércoles":3,
+      "miercoles":3,
+      "jueves":4,
+      "viernes":5,
+      "sábado":6,
+      "sabado":6,
+      "domingo":7
+    };
+
+    return map[String(dayName || "").toLowerCase()] || 0;
+  },
+
+  planDueDaysUntilToday(){
+    const activePlan = this.activePlan();
+    if(!activePlan || !activePlan.days.length) return [];
+
+    const todayNumber = new Date().getDay() || 7;
+
+    return activePlan.days.filter(d => this.dayNumber(d.day) <= todayNumber);
+  },
+
+  completedDuePlanDays(){
+    const activePlan = this.activePlan();
+    if(!activePlan || !activePlan.days.length) return [];
+
+    const dueDays = this.planDueDaysUntilToday().map(d => d.day);
+
+    const completedDays = new Set(
+      this.weekSessions()
+        .filter(s => s.fromPlan === true && s.planName === activePlan.name)
+        .filter(s => dueDays.includes(s.planDay))
+        .map(s => s.planDay)
+    );
+
+    return [...completedDays];
+  },
+
+  adherenceToDate(){
+    const due = this.planDueDaysUntilToday();
+    if(!due.length) return 0;
+
+    const done = this.completedDuePlanDays().length;
+    return Math.round((done / due.length) * 100);
+  },
+
+  weeklyAdherence(){
     const activePlan = this.activePlan();
     if(!activePlan || !activePlan.days.length) return 0;
 
@@ -113,6 +162,10 @@ const app = {
 
     const done = activePlan.days.filter(d => completedDays.has(d.day)).length;
     return Math.round((done / activePlan.days.length) * 100);
+  },
+
+  adherence(){
+    return this.adherenceToDate();
   },
 
   streak(){
@@ -172,8 +225,18 @@ const app = {
   normalizeRunMetrics(raw){
     const km = Number(raw.km || 0);
     const timeSeconds = Number(raw.timeSeconds || 0);
+    const steps = Number(raw.steps || 0);
+
     const pace = km && timeSeconds ? this.formatPace(timeSeconds, km) : "";
     const speed = km && timeSeconds ? this.formatSpeed(timeSeconds, km) : "";
+
+    const cadence = steps && timeSeconds
+      ? Math.round(steps / (timeSeconds / 60))
+      : "";
+
+    const strideLength = km && steps
+      ? Math.round((km * 100000) / steps)
+      : "";
 
     return {
       ...raw,
@@ -187,8 +250,8 @@ const app = {
       steps:raw.steps || "",
       fc:raw.fc || raw.avgHr || "",
       avgHr:raw.fc || raw.avgHr || "",
-      cadence:raw.cadence || "",
-      strideLength:raw.strideLength || ""
+      cadence,
+      strideLength
     };
   },
 
@@ -198,6 +261,8 @@ const app = {
     const lost = current && this.db.startWeight ? (this.db.startWeight-current).toFixed(1) : "0.0";
     const missing = current ? Math.max(0,current-goal).toFixed(1) : "0.0";
     const activePlan = this.activePlan();
+    const dueDays = this.planDueDaysUntilToday();
+    const doneDue = this.completedDuePlanDays();
 
     document.getElementById("inicio").innerHTML = `
       ${this.header()}
@@ -210,12 +275,13 @@ const app = {
           <div class="card-head">
             <div>
               <div class="label">Plan activo · ${activePlan.name}</div>
-              <div class="card-title">${activePlan.days.length} días de entrenamiento</div>
+              <div class="card-title">${doneDue.length} de ${dueDays.length} vencidos · ${this.adherenceToDate()}%</div>
               <div class="sub">${activePlan.days.map(d=>`${d.day} ${d.km}km`).join(" · ")}</div>
             </div>
             <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Editar</button>
           </div>
-          <div class="progress"><div style="width:${this.adherence()}%"></div></div>
+          <div class="progress"><div style="width:${this.adherenceToDate()}%"></div></div>
+          <div class="sub" style="margin-top:10px;">Adherencia al día. Semanal total: ${this.weeklyAdherence()}%</div>
         </section>
       ` : `
         <section class="card">
@@ -227,9 +293,9 @@ const app = {
       `}
 
       <section class="stats">
-        <div class="stat"><b>${this.weekSessions().length}</b><span>Esta semana</span></div>
+        <div class="stat"><b>${this.weekSessions().length}</b><span>Semana</span></div>
+        <div class="stat"><b>${this.adherenceToDate()}%</b><span>Adherencia</span></div>
         <div class="stat"><b>${this.streak()}</b><span>Racha</span></div>
-        <div class="stat"><b>${this.db.sessions.length}</b><span>Total</span></div>
       </section>
 
       <section class="card">
@@ -398,7 +464,6 @@ const app = {
     const completed = this.findCompletedPlanSession(day.day, plan.name);
     const isDone = !!completed;
     const diff = completed?.diffKm ? Number(completed.diffKm) : null;
-    const sessionIndex = completed ? this.db.sessions.indexOf(completed) : -1;
 
     return `
       <section class="routine-card ${isDone ? "done" : ""}">
@@ -431,9 +496,11 @@ const app = {
           ✦ Carga plan: ${day.day} / Carrera ${day.km} km
         </div>
 
-        <button class="routine-action" onclick="${isDone ? `app.openEditSessionModal(${sessionIndex})` : `app.openCompletePlanModal(${index})`}">
-          ${isDone ? "EDITAR REGISTRO" : "▶ COMPLETAR"}
-        </button>
+        ${
+          isDone
+          ? `<button class="routine-action done-action" disabled>✓ COMPLETADO</button>`
+          : `<button class="routine-action" onclick="app.openCompletePlanModal(${index})">▶ COMPLETAR</button>`
+        }
       </section>
     `;
   },
@@ -466,8 +533,6 @@ const app = {
         <input id="complete-steps" type="number" placeholder="Pasos">
         <input id="complete-kcal" type="number" placeholder="Calorías kcal">
         <input id="complete-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
-        <input id="complete-cadence" type="number" placeholder="Cadencia promedio pasos/min">
-        <input id="complete-stride" type="number" placeholder="Zancada promedio cm">
 
         <button class="btn" onclick="app.saveCompletedPlanSession(${index})">Guardar entrenamiento</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
@@ -503,8 +568,6 @@ const app = {
       steps:document.getElementById("complete-steps").value,
       kcal:document.getElementById("complete-kcal").value,
       fc:document.getElementById("complete-fc").value,
-      cadence:document.getElementById("complete-cadence").value,
-      strideLength:document.getElementById("complete-stride").value,
       date:this.dateInputToISO(date),
       diffKm:(Number(km) - Number(day.km)).toFixed(1)
     });
@@ -545,11 +608,6 @@ const app = {
         <input id="edit-kcal" type="number" placeholder="Calorías kcal" value="${s.kcal || ""}">
         <input id="edit-fc" type="number" placeholder="Frecuencia cardíaca media ppm" value="${s.fc || s.avgHr || ""}">
 
-        ${isRun ? `
-          <input id="edit-cadence" type="number" placeholder="Cadencia promedio pasos/min" value="${s.cadence || ""}">
-          <input id="edit-stride" type="number" placeholder="Zancada promedio cm" value="${s.strideLength || ""}">
-        ` : ""}
-
         <button class="btn" onclick="app.saveEditedSession(${index})">Guardar cambios</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
@@ -588,8 +646,6 @@ const app = {
         ...updated,
         km,
         steps:document.getElementById("edit-steps").value,
-        cadence:document.getElementById("edit-cadence").value,
-        strideLength:document.getElementById("edit-stride").value,
         diffKm:old.plannedKm ? (Number(km) - Number(old.plannedKm)).toFixed(1) : ""
       });
     }
@@ -633,8 +689,6 @@ const app = {
       ${this.timeWheelHTML("free", "Duración")}
       <input id="free-kcal" type="number" placeholder="Calorías kcal">
       <input id="free-fc" type="number" placeholder="Frecuencia cardíaca media ppm">
-      <input id="free-cadence" type="number" placeholder="Cadencia promedio pasos/min">
-      <input id="free-stride" type="number" placeholder="Zancada promedio cm">
     ` : `
       <input id="free-date" type="date" value="${new Date().toISOString().slice(0,10)}">
       ${this.timeWheelHTML("free", "Duración")}
@@ -671,9 +725,7 @@ const app = {
       session = this.normalizeRunMetrics({
         ...session,
         km:document.getElementById("free-km").value,
-        steps:document.getElementById("free-steps").value,
-        cadence:document.getElementById("free-cadence").value,
-        strideLength:document.getElementById("free-stride").value
+        steps:document.getElementById("free-steps").value
       });
     }
 
@@ -882,8 +934,8 @@ const app = {
           <div class="kpi-value">${data.bestPace || "--"}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Adherencia</div>
-          <div class="kpi-value">${this.adherence()}%</div>
+          <div class="kpi-label">Adh. semana</div>
+          <div class="kpi-value">${this.weeklyAdherence()}%</div>
         </div>
       </section>
 
@@ -1059,15 +1111,28 @@ const app = {
         type:"line",
         data:{
           labels:data.weights.map(w=>new Date(w.date).toLocaleDateString("es-CL",{day:"2-digit",month:"short"})),
-          datasets:[{
-            label:"Peso",
-            data:data.weights.map(w=>Number(w.value)),
-            borderColor:"#4A7FA5",
-            backgroundColor:"rgba(74,127,165,.12)",
-            tension:.35,
-            fill:true,
-            pointRadius:4
-          }]
+          datasets:[
+            {
+              label:"Peso",
+              data:data.weights.map(w=>Number(w.value)),
+              borderColor:"#4A7FA5",
+              backgroundColor:"rgba(74,127,165,.12)",
+              tension:.35,
+              fill:true,
+              pointRadius:4
+            },
+            {
+              label:"Objetivo",
+              data:data.weights.map(()=>Number(this.db.goalWeight)),
+              borderColor:"#6ECFBA",
+              backgroundColor:"transparent",
+              borderDash:[6,6],
+              tension:0,
+              fill:false,
+              pointRadius:0,
+              borderWidth:2
+            }
+          ]
         },
         options:this.chartOptions("kg")
       });
