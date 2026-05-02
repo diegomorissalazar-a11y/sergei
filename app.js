@@ -27,6 +27,7 @@ const app = {
   cloudApplyingRemote: false,
   charts: {},
   progressRange: 4,
+  exportRange: 4,
   nutritionView: 'registro',
   ideaFilter: 'desayuno',
   dayNames: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],
@@ -171,12 +172,11 @@ const app = {
     const activePlan = this.getActivePlan();
     const due = this.getDuePlanMetrics(activePlan);
     const weekSessions = this.sessionsThisWeek();
-    const latest = [...this.db.sessions].sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0,3);
+    const latest = [...this.db.sessions].sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0,2);
     const weight = this.latestWeight();
     const weightProgress = this.weightProgress();
-    const habits = this.getHabitKPIs();
     const signals = this.getSmartSignals();
-    const race = this.db.race;
+    const race = this.db.race || {};
     const days = race.date ? this.daysUntil(race.date) : null;
 
     page.innerHTML = `
@@ -184,102 +184,89 @@ const app = {
       <div class="date">${this.formatDateLong(today)}</div>
       <h1>Hola, ${this.db.profile.userName || 'Sergei'} 👋</h1>
 
-      ${this.renderHomeSignals(signals)}
-
-      <section class="card">
-        <div class="card-head">
-          <div>
+      <section class="card home-combo-card">
+        <div class="label">Seguimiento semanal · ${today.getFullYear()}</div>
+        <div class="home-combo-grid">
+          <div class="weekly-lines">
+            <div><span>🥇</span> Mejor semana del año: <b>${this.bestWeekSummary()}</b></div>
+            <div><span>⚡</span> Racha actual: <b>${this.streakWeeks()} semana${this.streakWeeks() === 1 ? '' : 's'} seguida${this.streakWeeks() === 1 ? '' : 's'}</b></div>
+            <div><span>🏃</span> Esta semana: <b>${weekSessions.length} sesiones</b></div>
+          </div>
+          <div class="adherence-mini">
             <div class="label">Adherencia al plan</div>
-            <div class="card-title">${due.doneDue} de ${due.dueCount} cumplidos · ${due.adherenceToDate}%</div>
-            <div class="sub">${activePlan ? `${activePlan.name} · ${this.planSummary(activePlan)}` : 'Crea tu plan semanal desde la pestaña Plan.'}</div>
-          </div>
-          <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Plan</button>
-        </div>
-        <div class="progress"><div style="width:${due.adherenceToDate}%"></div></div>
-        <div class="kpi-grid">
-          <div class="kpi-box"><small>Km cumplidos</small><b>${this.formatNumber(due.actualKm)} / ${this.formatNumber(due.plannedKmDue)}</b></div>
-          <div class="kpi-box"><small>Diferencia</small><b class="${due.diffKm >= 0 ? 'green':'red'}">${due.diffKm >= 0 ? '+' : ''}${this.formatNumber(due.diffKm)} km</b></div>
-        </div>
-        <div class="sub">Adherencia al día. Cierre semanal total: ${due.weekClosure}%</div>
-      </section>
-
-      <section class="stats">
-        <div class="stat"><b>${weekSessions.length}</b><span>Sesiones</span></div>
-        <div class="stat"><b>${this.streakWeeks()}</b><span>Racha</span></div>
-        <div class="stat"><b>${this.db.completedRaces.length}</b><span>Carreras</span></div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <div class="label">Hábitos clave</div>
-            <div class="card-title">Resumen diario</div>
+            <b>${due.doneDue} de ${due.dueCount}</b>
+            <span>cumplidos · ${due.adherenceToDate}%</span>
+            <div class="progress mini"><div style="width:${due.adherenceToDate}%"></div></div>
           </div>
         </div>
-        <div class="kpi-grid">
-          <div class="kpi-box"><small>Sin alcohol</small><b>${habits.daysWithoutAlcohol}</b></div>
-          <div class="kpi-box"><small>Sin fuera de plan</small><b>${habits.daysWithoutOffPlan}</b></div>
-          <div class="kpi-box"><small>Semanas limpias</small><b>${habits.cleanWeeks}</b></div>
-          <div class="kpi-box"><small>Racha nutrición</small><b>${habits.nutritionStreak}</b></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="weight-head">
-          <div>
-            <div class="label">Objetivo de peso</div>
-          </div>
-          <div class="btn-row">
-            <button class="pill" onclick="app.openWeightModal()">+ Peso</button>
-            <button class="icon-btn" onclick="app.openGoalWeightModal()">✏️</button>
-          </div>
-        </div>
-        <div class="weight-main">
-          <div>
-            <div class="weight-current"><span>${weight ? `${this.formatNumber(weight.value)}kg actual` : 'Sin peso actual'}</span><span class="weight-percent">${weightProgress.percent}%</span></div>
-            <div class="progress"><div style="width:${weightProgress.percent}%"></div></div>
-            <div class="weight-values">
-              <div><b class="green">-${this.formatNumber(weightProgress.lost)}</b><small>Desde inicio</small></div>
-              <div><b>${this.formatNumber(weightProgress.remaining)}</b><small>Faltan</small></div>
+        ${activePlan ? `
+          <div class="home-combo-divider"></div>
+          <div class="home-plan-row">
+            <div>
+              <div class="label">Plan activo</div>
+              <div class="sub">${activePlan.name} · ${this.planSummary(activePlan)}</div>
             </div>
-            <div class="sub" style="margin-top:14px">Peso inicial registrado: ${this.formatNumber(this.db.startWeight || 0)} kg</div>
+            <div class="home-plan-kpis">
+              <div><small>KM cumplidos</small><b>${this.formatNumber(due.actualKm)} / ${this.formatNumber(due.plannedKmDue)}</b></div>
+              <div><small>Diferencia</small><b class="${due.diffKm >= 0 ? 'green':'red'}">${due.diffKm >= 0 ? '+' : ''}${this.formatNumber(due.diffKm)} km</b></div>
+            </div>
           </div>
-          <div class="goal-box"><small>Objetivo</small><b>${this.formatNumber(this.db.goalWeight)}</b><small>kg</small></div>
-        </div>
+        ` : `
+          <div class="home-combo-divider"></div>
+          <div class="home-plan-row">
+            <div>
+              <div class="label">Plan activo</div>
+              <div class="sub">Crea tu plan semanal para activar adherencia.</div>
+            </div>
+            <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Plan</button>
+          </div>
+        `}
       </section>
 
-      <section class="card">
-        <div class="card-head">
+      <section class="card home-race-card">
+        <div class="race-content">
           <div>
             <div class="label">Carrera objetivo</div>
             <div class="card-title">${race.title || 'Sin carrera objetivo'}</div>
             <div class="sub">${race.title ? `${race.distance}K · ${this.formatDateShort(race.date)}` : 'Agrega tu próxima carrera y activa el contador.'}</div>
+            <div class="race-actions">
+              <button class="pill light" onclick="app.openRaceModal()">${race.title ? 'Editar' : 'Agregar'}</button>
+              ${race.title ? `<button class="pill" onclick="app.openCompleteRaceModal()">Registrar resultado</button>` : ''}
+            </div>
           </div>
-          <div class="btn-row">
-            <button class="pill light" onclick="app.openRaceModal()">${race.title ? 'Editar':'Agregar'}</button>
-            ${race.title ? `<button class="pill" onclick="app.openCompleteRaceModal()">Ya corrí</button>` : ''}
-          </div>
-        </div>
-        <div class="race-box">
-          <div class="sub">Cuenta regresiva usando fecha local de Santiago. Distancia total del evento y nombre visibles siempre.</div>
-          <div class="days-counter"><b>${days === null ? '--' : days}</b><small>días</small></div>
+          <div class="days-counter compact"><b>${days === null ? '--' : days}</b><small>días</small></div>
         </div>
       </section>
 
-      <section class="card blue-card">
-        <div class="label">Seguimiento semanal · ${today.getFullYear()}</div>
-        <div class="sub" style="margin-top:12px">🥇 Mejor semana del año: <b>${this.bestWeekSummary()}</b></div>
-        <div class="sub" style="margin-top:6px">⚡ Racha actual: <b>${this.streakWeeks()} semanas seguidas</b></div>
-        <div class="sub" style="margin-top:6px">🏃 Esta semana: <b>${weekSessions.length} sesiones</b></div>
-      </section>
-
-      <section class="card">
-        <div class="section-head">
+      <section class="card compact-weight-card">
+        <div class="weight-head">
+          <div class="label">Objetivo de peso</div>
+          <div class="btn-row compact-actions">
+            <button class="pill light" onclick="app.openWeightModal()">+ Peso</button>
+            <button class="icon-btn" onclick="app.openGoalWeightModal()">✎</button>
+          </div>
+        </div>
+        <div class="weight-compact-grid">
           <div>
-            <div class="label">Últimos entrenamientos</div>
+            <div class="weight-current"><span>${weight ? `${this.formatNumber(weight.value)} kg actual` : 'Sin peso actual'}</span><span class="weight-percent">${weightProgress.percent}%</span></div>
+            <div class="progress slim"><div style="width:${weightProgress.percent}%"></div></div>
+            <div class="weight-values compact-values">
+              <div><b class="green">-${this.formatNumber(weightProgress.lost)} kg</b><small>Perdidos</small></div>
+              <div><b>${this.formatNumber(weightProgress.remaining)} kg</b><small>Faltan</small></div>
+            </div>
           </div>
-          <div class="btn-row">
-            <button class="pill light" onclick="app.openExportModal()">Exportar</button>
+          <div class="goal-box compact"><small>Objetivo</small><b>${this.formatNumber(this.db.goalWeight)}</b><small>kg</small></div>
+        </div>
+      </section>
+
+      ${this.renderHomeSignals(signals)}
+
+      <section class="card latest-card">
+        <div class="section-head compact-section-head">
+          <div><div class="label">Últimos entrenamientos</div></div>
+          <div class="inline-export-actions">
+            <button class="pill light export-range-pill" onclick="app.cycleExportRange()">▣ ${this.exportRangeLabel()}</button>
+            <button class="pill light export-button" onclick="app.copyTrainingExport()">↥ Exportar</button>
           </div>
         </div>
         ${latest.length ? latest.map(s => this.trainingCard(s, true)).join('') : `<div class="empty">Todavía no tienes entrenamientos registrados.</div>`}
@@ -288,27 +275,33 @@ const app = {
   },
 
   trainingCard(session, withEdit=false){
-    const icon = session.type === 'run' ? '⚡' : '🏋️';
+    const icon = session.type === 'run' ? '🏃' : '🏋️';
     const title = session.title || `${this.weekdayName(session.date)} — ${session.type === 'run' ? 'Carrera' : 'Fuerza'}`;
+    const summary = session.type === 'run'
+      ? `Plan: ${session.plannedKm || '--'} km · Real: ${session.km ? this.formatNumber(session.km) : '--'} km · Dif: ${session.diffKm !== undefined && session.diffKm !== '' ? `${Number(session.diffKm) >= 0 ? '+' : ''}${this.formatNumber(session.diffKm)} km` : '--'}`
+      : `Tiempo: ${session.durationLabel || '--'} · FC: ${session.fc || '--'} · Kcal: ${session.kcal || '--'}`;
+
     return `
-      <div class="card" style="margin-top:14px">
-        <div class="train-card">
-          <div class="train-icon">${icon}</div>
-          <div>
-            <div class="train-title">${title}</div>
-            <div class="sub">${this.relativeDay(session.date)} · ${session.fromPlan ? `${session.planName} / ${session.planDay}` : 'Sesión libre'}</div>
-            <div class="metrics">
-              <div class="metric"><b>${session.durationLabel || '--'}</b><small>Tiempo</small></div>
-              <div class="metric"><b>${session.km ? `${this.formatNumber(session.km)} km` : '--'}</b><small>Distancia</small></div>
-              <div class="metric"><b>${session.pace || '--'}</b><small>Ritmo</small></div>
-              <div class="metric"><b>${session.steps || '--'}</b><small>Pasos</small></div>
-              <div class="metric"><b>${session.fc || '--'}</b><small>FC media</small></div>
-              <div class="metric"><b>${session.kcal || '--'}</b><small>Calorías</small></div>
+      <article class="workout-compact">
+        <div class="workout-icon">${icon}</div>
+        <div class="workout-main">
+          <div class="workout-head">
+            <div>
+              <div class="workout-title">${title}</div>
+              <div class="workout-sub">${this.relativeDay(session.date)}${session.fromPlan ? ` · ${session.planName} / ${session.planDay}` : ''}</div>
             </div>
-            ${withEdit ? `<div class="session-actions"><button class="mini-btn" onclick="app.openSessionModalForEdit('${session.id}')">Editar</button></div>` : ''}
+            ${withEdit ? `<button class="mini-btn" onclick="app.openSessionModalForEdit('${session.id}')">Editar</button>` : ''}
           </div>
+          <div class="workout-metrics">
+            <div><small>Tiempo</small><b>${session.durationLabel || '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatNumber(session.km)} km` : '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (session.pace || '--') : (session.series || '--')}</b></div>
+            <div><small>FC media</small><b>${session.fc || '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps || '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
+          </div>
+          <div class="workout-summary">${summary}</div>
         </div>
-      </div>
+      </article>
     `;
   },
 
@@ -631,7 +624,7 @@ const app = {
           <div class="collection-icon">★</div>
           <div>
             <div class="collection-title">${unlocked} ${unlocked === 1 ? 'medalla' : 'medallas'}</div>
-            <div class="collection-sub">${totalKm ? `${this.formatNumber(totalKm)} km oficiales acumulados.` : 'Marca “Ya corrí” en una carrera objetivo para desbloquear tu primera medalla.'}</div>
+            <div class="collection-sub">${totalKm ? `${this.formatNumber(totalKm)} km oficiales acumulados.` : 'Registra el resultado de una carrera objetivo para desbloquear tu primera medalla.'}</div>
           </div>
           <div class="collection-right">${unlocked}</div>
           <div class="collection-bar"><span style="width:${unlocked ? '100' : '0'}%"></span></div>
@@ -645,7 +638,7 @@ const app = {
           <section class="medal-empty-state">
             <div class="medal-empty-icon">🏅</div>
             <div class="card-title">Todavía no hay medallas</div>
-            <div class="sub">Cuando marques <b>Ya corrí</b> en tu carrera objetivo, aparecerá acá tu medalla metálica.</div>
+            <div class="sub">Cuando registres el resultado de una carrera objetivo, aparecerá acá tu medalla metálica.</div>
             <button class="btn" onclick="app.go('inicio', document.querySelectorAll('.tab')[0])">Ir al inicio</button>
           </section>
         `}
@@ -1269,23 +1262,34 @@ const app = {
     this.openSessionModal({ fromPlan:s.fromPlan, planName:s.planName, planDay:s.planDay, plannedKm:s.plannedKm, date:s.date, type:s.type, sessionId:s.id, km:s.km || '', timeSeconds:s.timeSeconds || 0, steps:s.steps || '', kcal:s.kcal || '', fc:s.fc || '', cadence:s.cadence || '', strideLength:s.strideLength || '', note:s.note || '' });
   },
 
-  openExportModal(){
-    this.showModal(`
-      <div class="modal-box compact">
-        <div class="modal-title">Exportar entrenamientos</div>
-        <div class="modal-subtitle">Copia un CSV con fecha, KPIs de entrenamiento y peso más cercano para pegarlo en ChatGPT.</div>
-        <button class="btn" onclick="app.exportCSVRange(4)">Copiar últimas 4 semanas</button>
-        <button class="btn" onclick="app.exportCSVRange(8)">Copiar últimas 8 semanas</button>
-        <button class="btn" onclick="app.exportCSVRange(16)">Copiar últimas 16 semanas</button>
-        <button class="btn secondary" onclick="app.exportCSVRange('all')">Copiar todo</button>
-        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
-      </div>
-    `);
+  exportRangeLabel(){
+    const labels = { 4:'4 semanas', 8:'8 semanas', 16:'16 semanas', all:'Todo' };
+    return labels[this.exportRange] || '4 semanas';
   },
+
+  cycleExportRange(){
+    const order = [4, 8, 16, 'all'];
+    const idx = order.findIndex(x => x === this.exportRange);
+    this.exportRange = order[(idx + 1) % order.length];
+    this.renderInicio();
+  },
+
+  copyTrainingExport(){
+    this.exportCSVRange(this.exportRange);
+  },
+
+  openExportModal(){
+    this.copyTrainingExport();
+  },
+
   exportCSVRange(range){
     const since = this.getExportStartDate(range);
-    const sessions = this.db.sessions.filter(s => !since || new Date(s.date) >= since).sort((a,b)=> new Date(a.date) - new Date(b.date));
+    const sessions = this.db.sessions
+      .filter(s => !since || new Date(s.date) >= since)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+
     let csv = 'fecha,dia_semana,tipo,origen,plan,dia_plan,km_plan,km_real,diferencia_km,tiempo,segundos,ritmo_min_km,velocidad_km_h,pasos,kcal,fc_media,cadencia_pasos_min,zancada_cm,peso_mas_cercano_kg,fecha_peso_usado\n';
+
     sessions.forEach(s => {
       const closestWeight = this.closestWeightToDate(s.date);
       const dateObj = new Date(s.date);
@@ -1312,10 +1316,14 @@ const app = {
         closestWeight?.date ? this.formatCSVDate(closestWeight.date) : ''
       ].map(v => this.csvSafe(v)).join(',') + '\n';
     });
-    navigator.clipboard.writeText(csv);
-    alert(`CSV copiado: ${range==='all' ? 'todo el historial' : `últimas ${range} semanas`}`);
-    this.closeModal();
+
+    navigator.clipboard.writeText(csv).then(()=>{
+      this.showToast('✓ Copiado en portapapeles');
+    }).catch(()=>{
+      this.showToast('No se pudo copiar', 'error');
+    });
   },
+
   getExportStartDate(range){ if(range === 'all') return null; const d = new Date(); d.setDate(d.getDate() - Number(range)*7); d.setHours(0,0,0,0); return d; },
   closestWeightToDate(date){
     if(!this.db.weights.length) return null;
@@ -1718,7 +1726,7 @@ const app = {
       signals.risk.push({ icon:'🏃', title:'Tirada larga pendiente', text:`Queda pendiente ${longPending.day} · ${this.formatNumber(longPending.km)} km.`, priority:3 });
     }
     signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutAlcohol} días sin alcohol`, text:'Buena señal para recuperación, sueño y peso.', priority:4 });
-    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutOffPlan} días sin fuera de plan`, text:'Consistencia nutricional limpia.', priority:5 });
+    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutOffPlan} día${habits.daysWithoutOffPlan === 1 ? '' : 's'} adherido${habits.daysWithoutOffPlan === 1 ? '' : 's'} a la pauta`, text:'Consistencia nutricional limpia.', priority:5 });
     if(habits.cleanWeeks > 0){
       signals.streaks.push({ icon:'🌿', title:`${habits.cleanWeeks} semanas limpias`, text:'Sin alcohol ni comidas fuera de plan.', priority:6 });
     }
@@ -1743,9 +1751,9 @@ const app = {
       .slice(0,3);
     if(!list.length) return '';
     return `
-      <section class="card signals-card">
-        <div class="label">Señales de hoy</div>
-        <div class="signal-list compact">
+      <section class="card signals-card compact-signals-card">
+        <div class="label">Insights inteligentes</div>
+        <div class="signal-list compact horizontal">
           ${list.map(s=>this.signalItem(s)).join('')}
         </div>
       </section>
@@ -1995,6 +2003,20 @@ const app = {
       }, 90);
     };
   },
+  showToast(message, type='success'){
+    const existing = document.querySelector('.toast-snackbar');
+    if(existing) existing.remove();
+    const el = document.createElement('div');
+    el.className = `toast-snackbar ${type === 'error' ? 'error' : ''}`;
+    el.textContent = message;
+    document.body.appendChild(el);
+    requestAnimationFrame(()=> el.classList.add('on'));
+    setTimeout(()=>{
+      el.classList.remove('on');
+      setTimeout(()=> el.remove(), 260);
+    }, 2200);
+  },
+
   showModal(html, afterOpen=null, raw=false){
     const modal = document.getElementById('modal');
     modal.innerHTML = raw ? html : html;
