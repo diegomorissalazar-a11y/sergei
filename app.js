@@ -1,5 +1,27 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBhe-I3OnC4l8QZXZE1g4oDirPaBOzpvF8",
+  authDomain: "sergei-run.firebaseapp.com",
+  databaseURL: "https://sergei-run-default-rtdb.firebaseio.com",
+  projectId: "sergei-run",
+  storageBucket: "sergei-run.firebasestorage.app",
+  messagingSenderId: "1016340493761",
+  appId: "1:1016340493761:web:9365302ac2ea602c24eb40"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestoreDB = getFirestore(firebaseApp);
+
 const app = {
   storageKey: 'sergei_run_pwa_v03',
+  cloudStatus: 'local',
+  cloudError: '',
+  cloudUnsubscribe: null,
+  cloudSaveTimer: null,
+  cloudReady: false,
+  cloudApplyingRemote: false,
   charts: {},
   progressRange: 4,
   nutritionView: 'registro',
@@ -29,11 +51,13 @@ const app = {
     }
     this.renderAll();
     this.bindGlobalEvents();
+    this.setupCloudSync();
   },
 
   defaultDB(){
     return {
       profile: { userName:'Sergei', birthDate:'1994-03-22', height:'184' },
+      sync: { enabled:true, syncId:'diego-sergei-run', cloudUpdatedAt:0, localUpdatedAt:Date.now() },
       goalWeight:90,
       startWeight:109,
       weights:[{ date:this.todayISO(), value:109 }],
@@ -82,14 +106,17 @@ const app = {
       const saved = localStorage.getItem(this.storageKey);
       if(saved){
         const parsed = JSON.parse(saved);
-        return { ...this.defaultDB(), ...parsed, profile:{...this.defaultDB().profile, ...(parsed.profile||{})}, nutrition:{...this.defaultDB().nutrition, ...(parsed.nutrition||{})} };
+        return { ...this.defaultDB(), ...parsed, profile:{...this.defaultDB().profile, ...(parsed.profile||{})}, sync:{...this.defaultDB().sync, ...(parsed.sync||{})}, nutrition:{...this.defaultDB().nutrition, ...(parsed.nutrition||{})} };
       }
     }catch(e){ console.error(e); }
     return this.defaultDB();
   },
 
   save(){
+    if(!this.db.sync) this.db.sync = { enabled:true, syncId:'diego-sergei-run', cloudUpdatedAt:0, localUpdatedAt:0 };
+    this.db.sync.localUpdatedAt = Date.now();
     localStorage.setItem(this.storageKey, JSON.stringify(this.db));
+    this.scheduleCloudSave();
   },
 
   bindGlobalEvents(){
@@ -431,7 +458,7 @@ const app = {
 
     const kmCanvas = document.getElementById('chartKm');
     if(kmCanvas && data.weeklyKm.labels.length){
-      const axis = this.getNiceAxisBounds(data.weeklyKm.values);
+      const axis = this.getNiceAxisBounds(data.weeklyKm.values, { clampZero:true });
       this.charts.km = new Chart(kmCanvas, {
         type:'bar',
         data:{ labels:data.weeklyKm.labels, datasets:[{ data:data.weeklyKm.values, backgroundColor:'#43D1B7', borderRadius:12 }] },
@@ -850,6 +877,16 @@ const app = {
         <input id="profileName" placeholder="Nombre" value="${this.escapeAttr(p.userName || '')}">
         <input id="profileBirth" type="date" value="${this.escapeAttr(p.birthDate || '')}">
         <input id="profileHeight" type="number" placeholder="Estatura (cm)" value="${this.escapeAttr(p.height || '')}">
+        <div class="pauta-row">
+          <div class="label" style="letter-spacing:.22em">Sincronización nube</div>
+          <div class="sub" style="margin-top:8px">Estado: <b>${this.cloudStatusLabel()}</b>${this.cloudError ? ` · ${this.escapeHtml(this.cloudError)}` : ''}</div>
+          <input id="syncIdInput" placeholder="Sync ID" value="${this.escapeAttr(this.db.sync?.syncId || 'diego-sergei-run')}">
+          <div class="btn-row">
+            <button class="btn" onclick="app.saveProfile(); app.connectCloudFromProfile();">Conectar nube</button>
+            <button class="btn secondary" onclick="app.forceCloudUpload()">Subir local</button>
+            <button class="btn secondary" onclick="app.forceCloudDownload()">Bajar nube</button>
+          </div>
+        </div>
         <div class="btn-row">
           <button class="btn" onclick="app.saveProfile()">Guardar perfil</button>
         </div>
@@ -863,6 +900,12 @@ const app = {
     this.db.profile.userName = document.getElementById('profileName').value.trim() || 'Sergei';
     this.db.profile.birthDate = document.getElementById('profileBirth').value;
     this.db.profile.height = document.getElementById('profileHeight').value;
+    const syncInput = document.getElementById('syncIdInput');
+    if(syncInput){
+      if(!this.db.sync) this.db.sync = {};
+      this.db.sync.syncId = this.cleanSyncId(syncInput.value || 'diego-sergei-run');
+      this.db.sync.enabled = true;
+    }
     this.closeModal();
     this.renderAll();
   },
@@ -1273,20 +1316,191 @@ const app = {
     });
     return { labels, values };
   },
-  getNiceAxisBounds(values){
-    if(!values || !values.length) return { min:0, max:10, step:1 };
-    const rawMin = Math.min(...values);
-    const rawMax = Math.max(...values);
-    const span = rawMax - rawMin || 1;
-    let paddedMin = rawMin - span * 0.25;
-    let paddedMax = rawMax + span * 0.25;
-    paddedMin = Math.floor(paddedMin);
-    paddedMax = Math.ceil(paddedMax);
-    if(paddedMin === paddedMax) paddedMax = paddedMin + 1;
-    const range = paddedMax - paddedMin;
+  getNiceAxisBounds(values, options = {}){
+    const { clampZero = false, fixedPercent = false } = options;
+    if(fixedPercent) return { min:0, max:100, step:20 };
+    const clean = (values || []).map(Number).filter(v => Number.isFinite(v));
+    if(!clean.length) return { min:0, max:10, step:1 };
+    const minValue = Math.min(...clean);
+    const maxValue = Math.max(...clean);
+    let min = Math.ceil(minValue * 0.75);
+    let max = Math.ceil(maxValue * 1.25);
+    if(clampZero && min < 0) min = 0;
+    if(clampZero && minValue >= 0 && min < 0) min = 0;
+    if(max <= min) max = min + 1;
+    const range = max - min;
     let step = Math.ceil(range / 5);
     if(step < 1) step = 1;
-    return { min:paddedMin, max:paddedMax, step };
+    return { min, max, step };
+  },
+
+  cloudStatusLabel(){
+    const map = { local:'local', connecting:'conectando', synced:'sincronizado', saving:'guardando', error:'error', disabled:'desactivado' };
+    return map[this.cloudStatus] || this.cloudStatus;
+  },
+  cleanSyncId(value){
+    return String(value || 'diego-sergei-run').trim().toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80) || 'diego-sergei-run';
+  },
+  syncDocRef(){
+    const syncId = this.cleanSyncId(this.db.sync?.syncId || 'diego-sergei-run');
+    if(!this.db.sync) this.db.sync = {};
+    this.db.sync.syncId = syncId;
+    return doc(firestoreDB, 'sergei_sync', syncId);
+  },
+  async setupCloudSync(){
+    if(!this.db.sync?.enabled){
+      this.cloudStatus = 'disabled';
+      return;
+    }
+    try{
+      this.cloudStatus = 'connecting';
+      const ref = this.syncDocRef();
+      const snap = await getDoc(ref);
+      if(snap.exists()){
+        const remote = snap.data()?.data;
+        if(remote){
+          this.cloudApplyingRemote = true;
+          this.db = this.mergeCloudData(this.db, remote);
+          localStorage.setItem(this.storageKey, JSON.stringify(this.db));
+          this.cloudApplyingRemote = false;
+          this.renderAll();
+        }
+      }else{
+        await this.forceCloudUpload(false);
+      }
+      this.cloudReady = true;
+      this.cloudStatus = 'synced';
+      if(this.cloudUnsubscribe) this.cloudUnsubscribe();
+      this.cloudUnsubscribe = onSnapshot(ref, (snapshot)=>{
+        if(!snapshot.exists()) return;
+        const remote = snapshot.data()?.data;
+        if(!remote || this.cloudApplyingRemote) return;
+        const remoteAt = Number(remote.sync?.cloudUpdatedAt || snapshot.data()?.updatedAt || 0);
+        const localAt = Number(this.db.sync?.cloudUpdatedAt || 0);
+        if(remoteAt > localAt){
+          this.cloudApplyingRemote = true;
+          this.db = this.mergeCloudData(this.db, remote);
+          localStorage.setItem(this.storageKey, JSON.stringify(this.db));
+          this.cloudApplyingRemote = false;
+          this.cloudStatus = 'synced';
+          this.renderAll();
+        }
+      }, (err)=>{
+        this.cloudStatus = 'error';
+        this.cloudError = err.message || String(err);
+        console.error('Firestore sync error', err);
+      });
+    }catch(err){
+      this.cloudStatus = 'error';
+      this.cloudError = err.message || String(err);
+      console.error('Cloud setup error', err);
+    }
+  },
+  scheduleCloudSave(){
+    if(this.cloudApplyingRemote || !this.db?.sync?.enabled || !this.cloudReady) return;
+    clearTimeout(this.cloudSaveTimer);
+    this.cloudSaveTimer = setTimeout(()=> this.forceCloudUpload(false), 900);
+  },
+  async forceCloudUpload(showAlert = true){
+    try{
+      if(!this.db.sync) this.db.sync = { enabled:true, syncId:'diego-sergei-run' };
+      this.db.sync.enabled = true;
+      this.db.sync.syncId = this.cleanSyncId(this.db.sync.syncId || 'diego-sergei-run');
+      const ts = Date.now();
+      this.db.sync.cloudUpdatedAt = ts;
+      this.cloudStatus = 'saving';
+      localStorage.setItem(this.storageKey, JSON.stringify(this.db));
+      await setDoc(this.syncDocRef(), { data:this.db, updatedAt:ts }, { merge:true });
+      this.cloudStatus = 'synced';
+      this.cloudError = '';
+      if(showAlert) alert('Datos locales subidos a Firestore.');
+    }catch(err){
+      this.cloudStatus = 'error';
+      this.cloudError = err.message || String(err);
+      console.error('Cloud upload error', err);
+      if(showAlert) alert('No se pudo subir a Firestore: ' + this.cloudError);
+    }
+  },
+  async forceCloudDownload(){
+    try{
+      this.cloudStatus = 'connecting';
+      const snap = await getDoc(this.syncDocRef());
+      if(!snap.exists()){
+        alert('No hay datos en nube para este Sync ID.');
+        this.cloudStatus = 'synced';
+        return;
+      }
+      const remote = snap.data()?.data;
+      if(remote){
+        this.cloudApplyingRemote = true;
+        this.db = this.mergeCloudData(this.db, remote);
+        localStorage.setItem(this.storageKey, JSON.stringify(this.db));
+        this.cloudApplyingRemote = false;
+        this.cloudStatus = 'synced';
+        this.closeModal();
+        this.renderAll();
+        alert('Datos descargados y fusionados desde Firestore.');
+      }
+    }catch(err){
+      this.cloudStatus = 'error';
+      this.cloudError = err.message || String(err);
+      alert('No se pudo bajar desde Firestore: ' + this.cloudError);
+    }
+  },
+  connectCloudFromProfile(){
+    if(this.cloudUnsubscribe) this.cloudUnsubscribe();
+    this.cloudReady = false;
+    this.closeModal();
+    this.setupCloudSync();
+    this.renderAll();
+  },
+  mergeById(localArr = [], remoteArr = [], idField = 'id'){
+    const map = new Map();
+    [...remoteArr, ...localArr].forEach(item=>{
+      if(!item) return;
+      const key = item[idField] || JSON.stringify(item);
+      map.set(key, { ...(map.get(key)||{}), ...item });
+    });
+    return [...map.values()];
+  },
+  mergeWeights(localArr = [], remoteArr = []){
+    const map = new Map();
+    [...remoteArr, ...localArr].forEach(w=>{
+      if(!w) return;
+      const key = `${w.date}|${w.value}`;
+      map.set(key,w);
+    });
+    return [...map.values()].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  },
+  mergeNutritionLogs(localLogs = {}, remoteLogs = {}){
+    const out = { ...remoteLogs };
+    Object.keys(localLogs || {}).forEach(date=>{
+      const l = localLogs[date] || {};
+      const r = out[date] || {};
+      out[date] = {
+        ...r,
+        ...l,
+        meals:{ ...(r.meals||{}), ...(l.meals||{}) },
+        offPlanMeals:[...(r.offPlanMeals||[]), ...(l.offPlanMeals||[])].filter((v,i,a)=>a.indexOf(v)===i),
+        waterGlasses: Math.max(Number(r.waterGlasses||0), Number(l.waterGlasses||0)),
+        alcohol: Math.max(Number(r.alcohol||0), Number(l.alcohol||0))
+      };
+    });
+    return out;
+  },
+  mergeCloudData(local, remote){
+    const base = { ...this.defaultDB(), ...remote, ...local };
+    base.profile = { ...(remote.profile||{}), ...(local.profile||{}) };
+    base.sync = { ...(remote.sync||{}), ...(local.sync||{}), enabled:true, syncId:this.cleanSyncId(local.sync?.syncId || remote.sync?.syncId || 'diego-sergei-run') };
+    base.weights = this.mergeWeights(local.weights, remote.weights);
+    base.sessions = this.mergeById(local.sessions, remote.sessions);
+    base.plans = this.mergeById(local.plans, remote.plans);
+    base.completedRaces = this.mergeById(local.completedRaces, remote.completedRaces);
+    base.nutritionLogs = this.mergeNutritionLogs(local.nutritionLogs, remote.nutritionLogs);
+    base.goalWeight = local.goalWeight || remote.goalWeight || 90;
+    base.startWeight = local.startWeight || remote.startWeight || base.weights?.[0]?.value || 109;
+    base.race = local.race?.title ? local.race : (remote.race || local.race || {title:'',date:'',distance:''});
+    return base;
   },
 
   getActivePlan(){
