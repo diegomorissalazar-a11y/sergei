@@ -1614,34 +1614,91 @@ const app = {
     if(!best) return '0 sesiones';
     return `${best[1].sessions} sesiones (${this.weekLabelNice(best[0])})`;
   },
-  getHabitKPIs(){
-    let daysWithoutAlcohol = 0, daysWithoutOffPlan = 0, nutritionStreak = 0;
-    const today = new Date(this.todayISO());
-    for(let i=0;i<365;i++){
-      const d = new Date(today); d.setDate(today.getDate() - i);
-      const iso = this.formatCSVDate(d);
-      const log = this.getNutritionLog(iso);
-      if(i === daysWithoutAlcohol && Number(log.alcohol || 0) === 0) daysWithoutAlcohol++;
-      if(i === daysWithoutOffPlan && (log.offPlanMeals || []).length === 0) daysWithoutOffPlan++;
-      if(i === nutritionStreak && this.nutritionScore(iso) >= 80) nutritionStreak++;
-    }
-    return { daysWithoutAlcohol, daysWithoutOffPlan, nutritionStreak, cleanWeeks:this.cleanWeeksStreak() };
+  isMeaningfulNutritionLog(log){
+    if(!log) return false;
+    const mealsDone = log.meals && Object.values(log.meals).some(Boolean);
+    const water = Number(log.waterGlasses || 0) > 0;
+    const offPlan = (log.offPlanMeals || []).length > 0;
+    const alcohol = Number(log.alcohol || 0) > 0;
+    return !!(mealsDone || water || offPlan || alcohol);
   },
 
-  cleanWeeksStreak(){
+  firstMeaningfulNutritionDate(){
+    const dates = Object.keys(this.db.nutritionLogs || {})
+      .filter(date => this.isMeaningfulNutritionLog(this.db.nutritionLogs[date]))
+      .sort((a,b) => new Date(a) - new Date(b));
+    return dates[0] || this.todayISO();
+  },
+
+  getRawNutritionLog(date){
+    return (this.db.nutritionLogs || {})[date] || { meals:{}, waterGlasses:0, offPlanMeals:[], alcohol:0 };
+  },
+
+  getHabitKPIs(){
+    let daysWithoutAlcohol = 0;
+    let daysWithoutOffPlan = 0;
+    let nutritionStreak = 0;
+
+    const today = new Date(`${this.todayISO()}T12:00:00`);
+    const firstDate = new Date(`${this.firstMeaningfulNutritionDate()}T12:00:00`);
+    const maxDays = Math.max(1, Math.floor((today - firstDate) / 86400000) + 1);
+
+    for(let i=0; i<maxDays; i++){
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const iso = this.formatCSVDate(d);
+      const log = this.getRawNutritionLog(iso);
+
+      if(i === daysWithoutAlcohol && Number(log.alcohol || 0) === 0) daysWithoutAlcohol++;
+      if(i === daysWithoutOffPlan && (log.offPlanMeals || []).length === 0) daysWithoutOffPlan++;
+      if(i === nutritionStreak && this.nutritionScoreFromLog(log) >= 80) nutritionStreak++;
+    }
+
+    return {
+      daysWithoutAlcohol,
+      daysWithoutOffPlan,
+      nutritionStreak,
+      cleanWeeks:this.cleanWeeksStreak(firstDate, today)
+    };
+  },
+
+  cleanWeeksStreak(firstDate = new Date(`${this.firstMeaningfulNutritionDate()}T12:00:00`), today = new Date(`${this.todayISO()}T12:00:00`)){
     let streak = 0;
-    const today = new Date(this.todayISO());
+
     for(let w=0; w<52; w++){
       let clean = true;
+      let hasStarted = false;
+
       for(let d=0; d<7; d++){
         const date = new Date(today);
         date.setDate(today.getDate() - (w*7 + d));
-        const log = this.getNutritionLog(this.formatCSVDate(date));
-        if(Number(log.alcohol || 0) > 0 || (log.offPlanMeals || []).length > 0){ clean = false; break; }
+
+        if(date < firstDate){
+          clean = false;
+          break;
+        }
+
+        hasStarted = true;
+        const log = this.getRawNutritionLog(this.formatCSVDate(date));
+        if(Number(log.alcohol || 0) > 0 || (log.offPlanMeals || []).length > 0){
+          clean = false;
+          break;
+        }
       }
-      if(clean) streak++; else break;
+
+      if(clean && hasStarted) streak++;
+      else break;
     }
+
     return streak;
+  },
+
+  nutritionScoreFromLog(log){
+    const meals = log?.meals || {};
+    const mealScore = (Object.values(meals).filter(Boolean).length / this.mealCatalog.length) * 70;
+    const waterScore = Math.min(20, (Number(log?.waterGlasses || 0) / this.db.nutrition.waterGoal) * 20);
+    const penalty = ((log?.offPlanMeals || []).length * 6) + (Number(log?.alcohol || 0) * 8);
+    return Math.max(0, Math.min(100, Math.round(mealScore + waterScore - penalty)));
   },
 
   getSmartSignals(){
@@ -1768,11 +1825,7 @@ const app = {
     return Object.values(log.meals).filter(Boolean).length;
   },
   nutritionScore(date){
-    const log = this.getNutritionLog(date);
-    const mealScore = (this.nutritionCompletedMeals(date) / this.mealCatalog.length) * 70;
-    const waterScore = Math.min(20, (Number(log.waterGlasses || 0) / this.db.nutrition.waterGoal) * 20);
-    const penalty = (log.offPlanMeals.length * 6) + (Number(log.alcohol || 0) * 8);
-    return Math.max(0, Math.min(100, Math.round(mealScore + waterScore - penalty)));
+    return this.nutritionScoreFromLog(this.getNutritionLog(date));
   },
   renderHeatmap(days = 365){
     const cells = [];
