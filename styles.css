@@ -394,3 +394,33 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
   .medal-coin{max-width:156px}
   .medal-flip-stage{width:290px;height:382px}
 }
+
+/* ===== v0.5 Alertas, heatmap anual y pauta dinámica ===== */
+.signals-card{padding-bottom:12px}
+.signal-list{display:grid;gap:10px;margin-top:14px}
+.signal-list.compact{grid-template-columns:1fr;gap:8px}
+.signal-item{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;background:#F7FAFC;border:1px solid var(--line);border-radius:16px;padding:12px;text-align:left}
+.signal-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#EEF6F8;font-size:18px}
+.signal-item b{display:block;color:var(--navy);font-size:15px;font-weight:900;line-height:1.2}
+.signal-item span{display:block;color:var(--text-soft);font-size:13px;line-height:1.35;margin-top:3px}
+.signal-block{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.signal-block:first-of-type{border-top:0;padding-top:0}
+
+.heatmap-year-grid{display:grid;grid-template-columns:repeat(53, minmax(5px,1fr));gap:3px;margin-top:16px;align-items:center;overflow:hidden}
+.heatmap-year-grid .heatmap-cell{aspect-ratio:1/1;border-radius:3px;min-width:5px}
+@media(max-width:560px){
+  .heatmap-year-grid{grid-template-columns:repeat(26, 1fr);gap:3px}
+}
+
+.pauta-card{background:#FFFDF8;border-color:#E7D7BC}
+.portion-list{margin-top:16px;display:grid;gap:0;border-top:1px solid #E5D8C5}
+.portion-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E5D8C5;color:#4A3D34;font-size:15px}
+.portion-row b{color:#111827;font-weight:900}
+.weekly-menu{margin-top:18px;display:grid;gap:0;border-top:1px solid #E5D8C5}
+.weekly-menu-day{padding:14px 0;border-bottom:1px solid #E5D8C5}
+.weekly-menu-day b{color:#B7772D;font-weight:900}
+.weekly-menu-day span{color:#9A8F80}
+.weekly-menu-day p{margin:7px 0 0;color:#4A3D34;font-size:14px;line-height:1.35}
+.weekly-menu-day p b{color:#1E3A52}
+.weekly-editor{display:grid;gap:10px;margin-top:14px}
+.weekly-editor .pauta-row input{margin-top:8px}

@@ -73,6 +73,10 @@ const app = {
         period:'mar-may25',
         goal:'Bajar grasa manteniendo rendimiento',
         waterGoal:10,
+        portions:{
+          cereals:3, fruits:2, leanMeats:12, semiSkimDairy:2, skimDairy:1, fats:0.5, oils:1, vegetables:2
+        },
+        weeklyMenuOverrides:{},
         suggestions:{
           desayuno:[
             {title:'Proteico clásico',desc:'3 huevos + 1 pan molde + yogur protein + 60g jamón pavo',portions:'3 carnes + 0.5 cereal + 1 lácteo'},
@@ -171,6 +175,7 @@ const app = {
     const weight = this.latestWeight();
     const weightProgress = this.weightProgress();
     const habits = this.getHabitKPIs();
+    const signals = this.getSmartSignals();
     const race = this.db.race;
     const days = race.date ? this.daysUntil(race.date) : null;
 
@@ -178,6 +183,8 @@ const app = {
       ${this.header()}
       <div class="date">${this.formatDateLong(today)}</div>
       <h1>Hola, ${this.db.profile.userName || 'Sergei'} 👋</h1>
+
+      ${this.renderHomeSignals(signals)}
 
       <section class="card">
         <div class="card-head">
@@ -212,8 +219,8 @@ const app = {
         <div class="kpi-grid">
           <div class="kpi-box"><small>Sin alcohol</small><b>${habits.daysWithoutAlcohol}</b></div>
           <div class="kpi-box"><small>Sin fuera de plan</small><b>${habits.daysWithoutOffPlan}</b></div>
+          <div class="kpi-box"><small>Semanas limpias</small><b>${habits.cleanWeeks}</b></div>
           <div class="kpi-box"><small>Racha nutrición</small><b>${habits.nutritionStreak}</b></div>
-          <div class="kpi-box"><small>Agua promedio</small><b>${habits.avgWater}</b></div>
         </div>
       </section>
 
@@ -418,6 +425,14 @@ const app = {
         <div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>
         ${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}
       </section>
+
+      <section class="chart-card">
+        <div class="chart-head"><div><div class="card-title">Heatmap nutricional</div><div class="sub">últimos 365 días · año móvil</div></div></div>
+        <div class="heatmap-year-grid">${this.renderHeatmap(365)}</div>
+        <div class="heatmap-legend"><span>Menos</span><span class="heatmap-dot" style="background:#F2EFE7"></span><span class="heatmap-dot" style="background:#E1D5A3"></span><span class="heatmap-dot" style="background:#C8AE56"></span><span class="heatmap-dot" style="background:#9D7321"></span><span class="heatmap-dot" style="background:#37312B"></span><span>Más</span></div>
+      </section>
+
+      ${this.renderProgressSignals()}
     `;
   },
 
@@ -554,11 +569,6 @@ const app = {
           </div>
           ${log.offPlanMeals.length ? `<div class="pauta-row"><b style="display:block;margin-bottom:8px;color:var(--navy)">Fuera de plan</b>${log.offPlanMeals.map(item=>`<div class="offplan-item">${item}</div>`).join('')}</div>` : ''}
         </section>
-        <section class="card">
-          <div class="card-head"><div><div class="label">Heatmap nutricional</div><div class="card-title">Año ${new Date().getFullYear()}</div></div></div>
-          <div class="heatmap-grid">${this.renderHeatmap()}</div>
-          <div class="heatmap-legend"><span>Menos</span><span class="heatmap-dot" style="background:#F2EFE7"></span><span class="heatmap-dot" style="background:#E1D5A3"></span><span class="heatmap-dot" style="background:#C8AE56"></span><span class="heatmap-dot" style="background:#9D7321"></span><span class="heatmap-dot" style="background:#37312B"></span><span>Más</span></div>
-        </section>
       ` : this.nutritionView === 'ideas' ? `
         <section class="card">
           <div class="sub">Ideas basadas en tu pauta. Toca “Usar hoy” para copiar al registro.</div>
@@ -580,16 +590,26 @@ const app = {
           </section>
         `).join('')}
       ` : `
-        <section class="card">
-          <div class="label">Pauta base</div>
+        <section class="card pauta-card">
+          <div class="label">Porciones diarias</div>
           <div class="card-title">${this.db.nutrition.patientName}</div>
-          <div class="sub" style="margin-top:10px">Periodo: ${this.db.nutrition.period}</div>
-          <div class="sub" style="margin-top:4px">Objetivo: ${this.db.nutrition.goal}</div>
-          <div class="nutrition-grid">
-            <div class="nutrition-item"><small>Agua objetivo</small><b>${this.db.nutrition.waterGoal} vasos</b></div>
-            <div class="nutrition-item"><small>Comidas sugeridas</small><b>${this.mealCatalog.length}</b></div>
+          <div class="sub" style="margin-top:8px">Pauta RO.NUTRIDEPORTIVA · ${this.db.nutrition.goal}</div>
+          ${this.renderDailyPortions()}
+        </section>
+
+        <section class="card pauta-card">
+          <div class="card-head">
+            <div>
+              <div class="label">Menú semanal</div>
+              <div class="card-title">Dinámico según tu plan</div>
+              <div class="sub">Los días con más kilómetros reciben más soporte energético. Puedes autoasignar o editar manualmente.</div>
+            </div>
           </div>
-          <div class="pauta-row"><div class="label" style="letter-spacing:.22em">Resumen pauta</div><div class="sub" style="margin-top:8px">${this.db.nutrition.pauta}</div></div>
+          <div class="btn-row">
+            <button class="pill" onclick="app.autoAssignWeeklyMenu()">Autoasignar pauta</button>
+            <button class="pill light" onclick="app.openWeeklyMenuEditor()">Editar manualmente</button>
+          </div>
+          ${this.renderWeeklyMenu()}
         </section>
       `}
     `;
@@ -1595,19 +1615,148 @@ const app = {
     return `${best[1].sessions} sesiones (${this.weekLabelNice(best[0])})`;
   },
   getHabitKPIs(){
-    const dates = Object.keys(this.db.nutritionLogs).sort((a,b)=> new Date(b)-new Date(a));
-    let daysWithoutAlcohol = 0, daysWithoutOffPlan = 0, nutritionStreak = 0, waterSum = 0, waterCount = 0;
+    let daysWithoutAlcohol = 0, daysWithoutOffPlan = 0, nutritionStreak = 0;
     const today = new Date(this.todayISO());
-    for(let i=0;i<90;i++){
+    for(let i=0;i<365;i++){
       const d = new Date(today); d.setDate(today.getDate() - i);
       const iso = this.formatCSVDate(d);
       const log = this.getNutritionLog(iso);
       if(i === daysWithoutAlcohol && Number(log.alcohol || 0) === 0) daysWithoutAlcohol++;
       if(i === daysWithoutOffPlan && (log.offPlanMeals || []).length === 0) daysWithoutOffPlan++;
       if(i === nutritionStreak && this.nutritionScore(iso) >= 80) nutritionStreak++;
-      if(i < 7){ waterSum += Number(log.waterGlasses || 0); waterCount++; }
     }
-    return { daysWithoutAlcohol, daysWithoutOffPlan, nutritionStreak, avgWater: `${waterCount ? (waterSum / waterCount).toFixed(1) : '0.0'} / ${this.db.nutrition.waterGoal}` };
+    return { daysWithoutAlcohol, daysWithoutOffPlan, nutritionStreak, cleanWeeks:this.cleanWeeksStreak() };
+  },
+
+  cleanWeeksStreak(){
+    let streak = 0;
+    const today = new Date(this.todayISO());
+    for(let w=0; w<52; w++){
+      let clean = true;
+      for(let d=0; d<7; d++){
+        const date = new Date(today);
+        date.setDate(today.getDate() - (w*7 + d));
+        const log = this.getNutritionLog(this.formatCSVDate(date));
+        if(Number(log.alcohol || 0) > 0 || (log.offPlanMeals || []).length > 0){ clean = false; break; }
+      }
+      if(clean) streak++; else break;
+    }
+    return streak;
+  },
+
+  getSmartSignals(){
+    const activePlan = this.getActivePlan();
+    const due = this.getDuePlanMetrics(activePlan);
+    const habits = this.getHabitKPIs();
+    const signals = { active:[], streaks:[], achievements:[], risk:[], recent:[] };
+    const daysNoTraining = this.daysSinceLastSession();
+    if(daysNoTraining >= 3){
+      signals.risk.push({ icon:'⚠️', title:`${daysNoTraining} días sin entrenar`, text:'Retoma con una sesión suave para volver al plan.', priority:1 });
+    }
+    if(activePlan && due.dueCount > 0 && due.adherenceToDate < 100){
+      signals.active.push({ icon:'⚠️', title:'Vas bajo el plan semanal', text:`${due.doneDue} de ${due.dueCount} sesiones cumplidas al día de hoy.`, priority:2 });
+    }
+    const longPending = this.longRunPending(activePlan);
+    if(longPending){
+      signals.risk.push({ icon:'🏃', title:'Tirada larga pendiente', text:`Queda pendiente ${longPending.day} · ${this.formatNumber(longPending.km)} km.`, priority:3 });
+    }
+    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutAlcohol} días sin alcohol`, text:'Buena señal para recuperación, sueño y peso.', priority:4 });
+    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutOffPlan} días sin fuera de plan`, text:'Consistencia nutricional limpia.', priority:5 });
+    if(habits.cleanWeeks > 0){
+      signals.streaks.push({ icon:'🌿', title:`${habits.cleanWeeks} semanas limpias`, text:'Sin alcohol ni comidas fuera de plan.', priority:6 });
+    }
+    const bestWeek = this.currentWeekIsBest();
+    if(bestWeek.isBest && bestWeek.currentKm > 0){
+      signals.achievements.push({ icon:'🏅', title:'Nuevo mejor volumen semanal', text:`Esta semana llevas ${this.formatNumber(bestWeek.currentKm)} km.`, priority:7 });
+    }
+    const bestDistance = this.lastRunIsLongest();
+    if(bestDistance){
+      signals.achievements.push({ icon:'⚡', title:'Mayor distancia reciente', text:`Última carrera: ${this.formatNumber(bestDistance.km)} km.`, priority:8 });
+    }
+    const last = [...this.db.sessions].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    if(last){
+      signals.recent.push({ icon:'📝', title:'Último entrenamiento registrado', text:`${this.relativeDay(last.date)} · ${last.km ? `${this.formatNumber(last.km)} km` : last.type}.`, priority:9 });
+    }
+    return signals;
+  },
+
+  renderHomeSignals(signals = this.getSmartSignals()){
+    const list = [...signals.risk, ...signals.active, ...signals.streaks, ...signals.achievements]
+      .sort((a,b)=>a.priority-b.priority)
+      .slice(0,3);
+    if(!list.length) return '';
+    return `
+      <section class="card signals-card">
+        <div class="label">Señales de hoy</div>
+        <div class="signal-list compact">
+          ${list.map(s=>this.signalItem(s)).join('')}
+        </div>
+      </section>
+    `;
+  },
+
+  renderProgressSignals(){
+    const s = this.getSmartSignals();
+    const block = (title, items) => `
+      <div class="signal-block">
+        <div class="label">${title}</div>
+        ${items.length ? `<div class="signal-list">${items.map(x=>this.signalItem(x)).join('')}</div>` : `<div class="sub" style="margin-top:10px">Sin señales por ahora.</div>`}
+      </div>
+    `;
+    return `
+      <section class="chart-card">
+        <div class="chart-head"><div><div class="card-title">Alertas y señales</div><div class="sub">activas · recientes · logros · riesgo</div></div></div>
+        ${block('Activas', s.active)}
+        ${block('Rachas limpias', s.streaks)}
+        ${block('Logros', s.achievements)}
+        ${block('Riesgo', s.risk)}
+        ${block('Recientes', s.recent)}
+      </section>
+    `;
+  },
+
+  signalItem(signal){
+    return `<div class="signal-item"><div class="signal-icon">${signal.icon}</div><div><b>${this.escapeHtml(signal.title)}</b><span>${this.escapeHtml(signal.text)}</span></div></div>`;
+  },
+
+  daysSinceLastSession(){
+    if(!this.db.sessions.length) return 999;
+    const last = [...this.db.sessions].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    const lastDate = new Date(`${last.date}T00:00:00`);
+    const today = new Date(this.todayISO());
+    return Math.max(0, Math.floor((today - lastDate)/86400000));
+  },
+
+  longRunPending(plan){
+    if(!plan) return null;
+    const enabledRuns = plan.days.filter(d=>d.enabled && d.type==='run' && Number(d.km)>0);
+    if(!enabledRuns.length) return null;
+    const longest = [...enabledRuns].sort((a,b)=>Number(b.km)-Number(a.km))[0];
+    const todayIdx = (new Date().getDay()+6)%7;
+    const longIdx = this.dayNames.indexOf(longest.day);
+    const done = this.sessionsThisWeek().some(s=>s.fromPlan && s.planName===plan.name && s.planDay===longest.day);
+    if(longIdx <= todayIdx && !done) return longest;
+    return null;
+  },
+
+  currentWeekIsBest(){
+    const currentKm = this.sessionsThisWeek().reduce((a,s)=>a+Number(s.km||0),0);
+    const weeks = {};
+    this.db.sessions.forEach(s=>{
+      const key = this.weekLabel(s.date);
+      weeks[key] = (weeks[key] || 0) + Number(s.km || 0);
+    });
+    const currentKey = this.weekLabel(this.todayISO());
+    const previousBest = Object.entries(weeks).filter(([k])=>k!==currentKey).reduce((m,[,v])=>Math.max(m,v),0);
+    return { currentKm:Number(currentKm.toFixed(1)), previousBest:Number(previousBest.toFixed(1)), isBest: currentKm > 0 && currentKm > previousBest };
+  },
+
+  lastRunIsLongest(){
+    const runs = this.db.sessions.filter(s=>s.type==='run' && Number(s.km)>0).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(!runs.length) return null;
+    const last = runs[0];
+    const maxBefore = runs.slice(1).reduce((m,s)=>Math.max(m,Number(s.km||0)),0);
+    return Number(last.km) > maxBefore ? { km:Number(last.km), session:last } : null;
   },
 
   getNutritionLog(date){
@@ -1625,18 +1774,110 @@ const app = {
     const penalty = (log.offPlanMeals.length * 6) + (Number(log.alcohol || 0) * 8);
     return Math.max(0, Math.min(100, Math.round(mealScore + waterScore - penalty)));
   },
-  renderHeatmap(){
-    const year = new Date().getFullYear();
+  renderHeatmap(days = 365){
     const cells = [];
-    for(let i=0;i<84;i++){
-      const d = new Date(year, 0, 1); d.setDate(d.getDate() + i);
+    const today = new Date(this.todayISO());
+    for(let i=days-1;i>=0;i--){
+      const d = new Date(today); d.setDate(today.getDate() - i);
       const iso = this.formatCSVDate(d);
       const score = this.nutritionScore(iso);
+      const log = this.getNutritionLog(iso);
       let color = '#F2EFE7';
-      if(score >= 80) color = '#37312B'; else if(score >= 60) color = '#9D7321'; else if(score >= 40) color = '#C8AE56'; else if(score >= 20) color = '#E1D5A3';
-      cells.push(`<div class="heatmap-cell" title="${iso} · ${score}%" style="background:${color}"></div>`);
+      if(Number(log.alcohol || 0) > 0 && (log.offPlanMeals || []).length > 0) color = '#37312B';
+      else if(Number(log.alcohol || 0) > 0) color = '#9D7321';
+      else if((log.offPlanMeals || []).length > 0) color = '#C8AE56';
+      else if(score >= 80) color = '#6ECFBA';
+      else if(score >= 40) color = '#E1D5A3';
+      cells.push(`<div class="heatmap-cell" title="${iso} · score ${score}% · alcohol ${log.alcohol || 0} · fuera plan ${(log.offPlanMeals||[]).length}" style="background:${color}"></div>`);
     }
     return cells.join('');
+  },
+
+  renderDailyPortions(){
+    const p = this.dailyPortions();
+    const rows = [
+      ['🌽','Cereales',p.cereals], ['🍎','Frutas',p.fruits], ['🍗','Carnes bajas en grasa',p.leanMeats],
+      ['🥛','Lácteos semidescrem.',p.semiSkimDairy], ['🥛','Lácteos descremados',p.skimDairy],
+      ['🥑','Lípidos',p.fats], ['🫒','Aceites',p.oils], ['🥦','Verduras',p.vegetables]
+    ];
+    return `<div class="portion-list">${rows.map(([ico,label,val])=>`<div class="portion-row"><span>${ico} ${label}</span><b>${val}</b></div>`).join('')}</div>`;
+  },
+
+  dailyPortions(){
+    return { cereals:3, fruits:2, leanMeats:12, semiSkimDairy:2, skimDairy:1, fats:0.5, oils:1, vegetables:2, ...(this.db.nutrition?.portions || {}) };
+  },
+
+  renderWeeklyMenu(){
+    const menu = this.getWeeklyMenu();
+    return `<div class="weekly-menu">${this.dayNames.map(day=>{
+      const m = menu[day];
+      return `<div class="weekly-menu-day"><div><b>${day}</b> <span>· ${m.type}</span></div><p><b>D:</b> ${this.escapeHtml(m.d)}</p><p><b>A:</b> ${this.escapeHtml(m.a)}</p><p><b>C:</b> ${this.escapeHtml(m.c)}</p></div>`;
+    }).join('')}</div>`;
+  },
+
+  getWeeklyMenu(){
+    const auto = this.buildAutoWeeklyMenu();
+    const overrides = this.db.nutrition?.weeklyMenuOverrides || {};
+    return Object.fromEntries(this.dayNames.map(day=>[day, {...auto[day], ...(overrides[day] || {})}]));
+  },
+
+  buildAutoWeeklyMenu(){
+    const plan = this.getActivePlan();
+    const planMap = {};
+    if(plan){ plan.days.filter(d=>d.enabled).forEach(d=>planMap[d.day]=d); }
+    const templates = {
+      rest:{ type:'Descanso', d:'Yogur + pan + 3 huevos', a:'320g corvina + brócoli + champiñones', c:'2 tortillas + pollo + rúcula + palta' },
+      soft:{ type:'Entreno suave', d:'Yogur + pan + 3 huevos + fruta', a:'320g merluza + brócoli + zanahoria', c:'Tortilla + 200g pollo + lechuga + palta' },
+      medium:{ type:'Carga media', d:'Yogur + avena + jamón pavo', a:'320g pollo/atún + arroz o choclo + verduras', c:'Choclo + 200g pechuga + espinaca + palta' },
+      long:{ type:'Tirada larga', d:'Yogur + pan + 3 huevos + fruta', a:'320g proteína + cereal medido + verduras', c:'Arroz o tortillas + pollo + zapallo + palta' },
+      strength:{ type:'Fuerza', d:'Yogur + avena + jamón pavo', a:'320g tilapia/pollo + apio + lechuga', c:'Arroz + pollo + verduras + palta' }
+    };
+    const menu = {};
+    this.dayNames.forEach(day=>{
+      const d = planMap[day];
+      if(!d) menu[day] = templates.rest;
+      else if(d.type === 'strength') menu[day] = templates.strength;
+      else if(Number(d.km||0) >= 12) menu[day] = templates.long;
+      else if(Number(d.km||0) >= 7) menu[day] = templates.medium;
+      else menu[day] = templates.soft;
+    });
+    return menu;
+  },
+
+  autoAssignWeeklyMenu(){
+    if(!this.db.nutrition.weeklyMenuOverrides) this.db.nutrition.weeklyMenuOverrides = {};
+    this.db.nutrition.weeklyMenuOverrides = {};
+    this.renderAll();
+    alert('Pauta semanal autoasignada según tu plan activo.');
+  },
+
+  openWeeklyMenuEditor(){
+    const menu = this.getWeeklyMenu();
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Editar menú semanal</div>
+        <div class="modal-subtitle">Ajusta desayuno, almuerzo y cena por día. Esto sobreescribe la autoasignación.</div>
+        <div class="weekly-editor">
+          ${this.dayNames.map(day=>`<div class="pauta-row"><b>${day}</b><input id="menuType-${day}" value="${this.escapeAttr(menu[day].type)}"><input id="menuD-${day}" value="${this.escapeAttr(menu[day].d)}"><input id="menuA-${day}" value="${this.escapeAttr(menu[day].a)}"><input id="menuC-${day}" value="${this.escapeAttr(menu[day].c)}"></div>`).join('')}
+        </div>
+        <button class="btn" onclick="app.saveWeeklyMenuEditor()">Guardar menú</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  saveWeeklyMenuEditor(){
+    if(!this.db.nutrition.weeklyMenuOverrides) this.db.nutrition.weeklyMenuOverrides = {};
+    this.dayNames.forEach(day=>{
+      this.db.nutrition.weeklyMenuOverrides[day] = {
+        type:document.getElementById(`menuType-${day}`).value,
+        d:document.getElementById(`menuD-${day}`).value,
+        a:document.getElementById(`menuA-${day}`).value,
+        c:document.getElementById(`menuC-${day}`).value
+      };
+    });
+    this.closeModal();
+    this.renderAll();
   },
 
   latestWeight(){ return this.db.weights.length ? [...this.db.weights].sort((a,b)=> new Date(a.date)-new Date(b.date)).slice(-1)[0] : null; },
