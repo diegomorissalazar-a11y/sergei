@@ -1390,6 +1390,14 @@ const app = {
     modal.innerHTML = '';
   },
 
+  todayISO(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  },
+
   formatDateLong(date){ return date.toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long' }).replace(/(^\w)/, l=>l.toUpperCase()); },
   formatDateShort(date){ return date ? new Date(`${date}T12:00:00`).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' }) : ''; },
   formatDateForBadge(date){ if(!date) return ''; const d = new Date(`${date}T12:00:00`); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getFullYear()).slice(-2)}.`; },
