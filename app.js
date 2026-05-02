@@ -563,12 +563,11 @@ const app = {
   renderMedallas(){
     const page = document.getElementById('medallas');
     const medals = this.buildMedalCollection();
-    const unlocked = medals.filter(m=>m.unlocked).length;
-    const total = medals.length;
-    const pct = total ? Math.round((unlocked/total)*100) : 0;
+    const unlocked = medals.length;
+    const totalKm = medals.reduce((acc,m)=> acc + Number(m.distance || 0), 0);
     page.innerHTML = `
       <div class="medal-shell">
-        ${this.header(true)}
+        ${this.header(false)}
         <div class="medal-title-main">MEDALLERO</div>
         <div class="medal-hero">Tu colección</div>
         <div class="medal-hero-sub">Tus carreras, tus logros.</div>
@@ -576,67 +575,66 @@ const app = {
         <section class="collection-card">
           <div class="collection-icon">★</div>
           <div>
-            <div class="collection-title">Colección ${unlocked}/${total}</div>
-            <div class="collection-sub">Sigue sumando kilómetros.</div>
+            <div class="collection-title">${unlocked} ${unlocked === 1 ? 'medalla' : 'medallas'}</div>
+            <div class="collection-sub">${totalKm ? `${this.formatNumber(totalKm)} km oficiales acumulados.` : 'Marca “Ya corrí” en una carrera objetivo para desbloquear tu primera medalla.'}</div>
           </div>
-          <div class="collection-right">${pct}%</div>
-          <div class="collection-bar"><span style="width:${pct}%"></span></div>
+          <div class="collection-right">${unlocked}</div>
+          <div class="collection-bar"><span style="width:${unlocked ? '100' : '0'}%"></span></div>
         </section>
 
-        <section class="medal-grid">
-          ${medals.map(m => this.medalCard(m)).join('')}
-        </section>
+        ${medals.length ? `
+          <section class="medal-grid unlocked-only">
+            ${medals.map(m => this.medalCard(m)).join('')}
+          </section>
+        ` : `
+          <section class="medal-empty-state">
+            <div class="medal-empty-icon">🏅</div>
+            <div class="card-title">Todavía no hay medallas</div>
+            <div class="sub">Cuando marques <b>Ya corrí</b> en tu carrera objetivo, aparecerá acá tu medalla metálica.</div>
+            <button class="btn" onclick="app.go('inicio', document.querySelectorAll('.tab')[0])">Ir al inicio</button>
+          </section>
+        `}
       </div>
     `;
   },
 
   medalCard(medal){
     return `
-      <article class="medal-card ${medal.unlocked ? 'unlocked':'locked'}" ${medal.unlocked ? `onclick="app.openMedalDetail('${medal.id}')"` : ''}>
+      <article class="medal-card unlocked" onclick="app.openMedalDetail('${medal.id}')">
         <div class="medal-top">
           <div class="medal-ribbon"></div>
-          <div class="medal-badge ${medal.unlocked ? '' : 'lock'}">${medal.unlocked ? '✓' : '🔒'}</div>
+          <div class="medal-badge">✓</div>
         </div>
         <div class="medal-coin">
           <div class="scene"></div>
           <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
-          <div class="medal-distance">${medal.distance}K</div>
+          <div class="medal-distance">${this.formatNumber(medal.distance)}K</div>
         </div>
-        <div class="medal-name">${medal.title}</div>
-        <div class="medal-km">${medal.distance}K</div>
+        <div class="medal-name">${this.escapeHtml(medal.title)}</div>
+        <div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div>
       </article>
     `;
   },
 
   buildMedalCollection(){
-    const medals = [];
-    const completed = this.db.completedRaces || [];
-    const completedMap = new Map();
-    completed.forEach(r => completedMap.set(r.catalogId || this.slugify(r.name), r));
+    const completed = [...(this.db.completedRaces || [])]
+      .sort((a,b)=> new Date(b.date) - new Date(a.date));
 
-    this.medalCatalog.forEach(item => {
-      const race = completedMap.get(item.id);
-      medals.push({
-        id: item.id,
-        title: item.title,
-        distance: item.distance,
-        unlocked: !!race,
-        raceData: race || null,
-        ringTitle: item.title.length > 24 ? item.title.slice(0,24) : item.title
-      });
+    return completed.map(r => {
+      const key = r.catalogId || this.slugify(r.name) || r.id;
+      return {
+        id: key,
+        title: r.name,
+        distance: Number(r.distance || 0),
+        unlocked: true,
+        raceData: r,
+        ringTitle: r.name.length > 24 ? r.name.slice(0,24) : r.name
+      };
     });
-
-    completed.forEach(r => {
-      const key = r.catalogId || this.slugify(r.name);
-      if(!medals.find(m => m.id === key)){
-        medals.push({ id:key, title:r.name, distance:r.distance, unlocked:true, raceData:r, ringTitle:r.name.slice(0,24) });
-      }
-    });
-    return medals;
   },
 
   openMedalDetail(id){
-    const medal = this.buildMedalCollection().find(m => m.id === id && m.unlocked);
+    const medal = this.buildMedalCollection().find(m => m.id === id);
     if(!medal || !medal.raceData) return;
     const r = medal.raceData;
     const insights = this.medalInsights(r);
@@ -653,15 +651,13 @@ const app = {
           <div class="medal-detail-title">${this.escapeHtml(r.name)}</div>
           <div class="medal-highlight">✪ Medalla oficial de carrera</div>
           <div class="detail-divider"></div>
-          <div class="medal-detail-note">${this.escapeHtml(r.note || `Ganaste esta medalla por completar la carrera de ${r.distance}K.`)}</div>
+          <div class="medal-detail-note">${this.escapeHtml(r.note || `Ganaste esta medalla por completar la carrera de ${this.formatNumber(r.distance)}K.`)}</div>
           <div class="medal-detail-date">Última vez: ${dateLabel}</div>
           <div class="medal-stats">
-            <div class="medal-stat-box"><small>Distancia</small><b>${this.formatNumber(r.distance)} km</b></div>
             <div class="medal-stat-box"><small>Tiempo</small><b>${r.durationLabel}</b></div>
             <div class="medal-stat-box"><small>Ritmo</small><b>${r.pace}</b></div>
             <div class="medal-stat-box"><small>FC media</small><b>${r.fc || '--'}</b></div>
-            <div class="medal-stat-box"><small>Pasos</small><b>${r.steps || '--'}</b></div>
-            <div class="medal-stat-box"><small>Calorías</small><b>${r.kcal || '--'}</b></div>
+            <div class="medal-stat-box"><small>Peso</small><b>${r.weight ? `${this.formatNumber(r.weight)} kg` : '--'}</b></div>
           </div>
           <div class="medal-insights">
             <h3>Insights</h3>
@@ -676,22 +672,111 @@ const app = {
         </div>
       </div>
     `;
-    this.showModal(html, false, true);
+    this.showModal(html, () => {
+      this.bindMedalFlipGesture();
+    }, true);
   },
 
   largeMedalMarkup(medal){
+    const r = medal.raceData || {};
+    const dateText = r.date ? this.formatDateLong(new Date(`${r.date}T12:00:00`)).toUpperCase() : 'SIN FECHA';
+    const paceText = r.pace || '--';
+    const timeText = r.durationLabel || '--';
+    const distanceText = r.distance ? `${this.formatNumber(r.distance)}K` : `${this.formatNumber(medal.distance)}K`;
+
     return `
-      <div class="medal-large">
-        <div style="display:flex;flex-direction:column;align-items:center">
-          <div class="medal-ribbon"></div>
-          <div class="medal-coin">
-            <div class="scene"></div>
-            <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
-            <div class="medal-distance">${medal.distance}K</div>
+      <div class="medal-flip-stage" id="medalFlipStage">
+        <div class="medal-flip-inner" id="medalFlipInner">
+          <div class="medal-face medal-front">
+            <div class="medal-large apple-medal-front">
+              <div class="medal-ribbon"></div>
+              <div class="medal-coin">
+                <div class="scene"></div>
+                <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
+                <div class="medal-distance">${distanceText}</div>
+              </div>
+            </div>
+          </div>
+          <div class="medal-face medal-edge">
+            <div class="medal-edge-disc"></div>
+          </div>
+          <div class="medal-face medal-back">
+            <div class="medal-large apple-medal-back">
+              <div class="medal-back-disc">
+                <div class="medal-back-text">OBTENIDO<br>${this.escapeHtml(dateText)}</div>
+                <div class="medal-back-hole"></div>
+                <div class="medal-back-bottom">
+                  <div class="medal-back-pill">Ritmo <b>${this.escapeHtml(paceText)}</b></div>
+                  <div class="medal-back-pill">Tiempo <b>${this.escapeHtml(timeText)}</b></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      <div class="medal-gesture-hint">Desliza sobre la medalla para girarla</div>
     `;
+  },
+
+  bindMedalFlipGesture(){
+    const stage = document.getElementById('medalFlipStage');
+    const inner = document.getElementById('medalFlipInner');
+    if(!stage || !inner) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let currentRotation = 0;
+    let committedSide = 0;
+
+    const setRotation = (deg, smooth=false) => {
+      inner.style.transition = smooth ? 'transform .42s cubic-bezier(.2,.8,.2,1)' : 'none';
+      inner.style.transform = `rotateY(${deg}deg)`;
+      const shadow = Math.min(1, Math.abs(Math.sin((deg * Math.PI) / 180)));
+      stage.style.setProperty('--flip-shadow', shadow.toFixed(2));
+    };
+
+    const pointerDown = (clientX) => {
+      isDragging = true;
+      startX = clientX;
+      currentRotation = committedSide;
+      setRotation(currentRotation, false);
+    };
+
+    const pointerMove = (clientX) => {
+      if(!isDragging) return;
+      const delta = clientX - startX;
+      let dragRotation = committedSide + delta * 0.82;
+      if(dragRotation < -18) dragRotation = -18;
+      if(dragRotation > 198) dragRotation = 198;
+      currentRotation = dragRotation;
+      setRotation(currentRotation, false);
+    };
+
+    const pointerUp = () => {
+      if(!isDragging) return;
+      isDragging = false;
+      committedSide = currentRotation > 90 ? 180 : 0;
+      currentRotation = committedSide;
+      setRotation(currentRotation, true);
+    };
+
+    stage.addEventListener('touchstart', (e)=>{
+      if(!e.touches || !e.touches.length) return;
+      pointerDown(e.touches[0].clientX);
+    }, { passive:true });
+
+    stage.addEventListener('touchmove', (e)=>{
+      if(!e.touches || !e.touches.length) return;
+      pointerMove(e.touches[0].clientX);
+    }, { passive:true });
+
+    stage.addEventListener('touchend', pointerUp);
+    stage.addEventListener('touchcancel', pointerUp);
+    stage.addEventListener('mousedown', (e)=> pointerDown(e.clientX));
+    window.addEventListener('mousemove', (e)=> pointerMove(e.clientX));
+    window.addEventListener('mouseup', pointerUp);
+
+    setRotation(0, true);
   },
 
   medalInsights(race){

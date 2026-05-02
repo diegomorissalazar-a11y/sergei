@@ -262,3 +262,135 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
   .medal-hero{font-size:28px}
   .medal-distance{font-size:14px}
 }
+
+/* ==========================================================
+   MEDALLERO v0.3.1 — paleta SERGEI + giro Apple-like
+   ========================================================== */
+.medal-shell{
+  background:
+    radial-gradient(900px 360px at 50% -80px, rgba(110,207,186,.22), transparent 45%),
+    var(--bg);
+  color:var(--text);
+  border-radius:0;
+  padding:0;
+  min-height:auto;
+  box-shadow:none;
+}
+.medal-shell .app-header{margin:4px 0 18px}
+.medal-shell .avatar{background:linear-gradient(135deg,#BDE9DE,#9CC8EC);color:var(--navy);border:none;box-shadow:var(--shadow)}
+.medal-shell .avatar::after{border-color:#fff}
+.medal-shell .logo-image{height:56px}
+.medal-logo{height:56px;width:auto;object-fit:contain}
+.medal-title-main{font-size:14px;color:var(--blue);font-weight:900;letter-spacing:.18em;text-transform:uppercase;margin-top:6px}
+.medal-hero{font-size:32px;font-weight:950;line-height:1.05;margin:6px 0 4px;color:var(--navy);letter-spacing:-.04em}
+.medal-hero-sub{color:var(--text-soft);font-size:15px;margin-bottom:18px}
+.collection-card{
+  display:grid;
+  grid-template-columns:48px 1fr auto;
+  gap:14px;
+  align-items:center;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:16px;
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
+}
+.collection-icon{width:42px;height:42px;border-radius:50%;border:2px solid var(--mint);display:flex;align-items:center;justify-content:center;color:var(--navy);font-weight:900;background:#F3FFFB}
+.collection-title{font-size:18px;font-weight:900;color:var(--navy)}
+.collection-sub{font-size:13px;color:var(--text-soft);margin-top:4px;line-height:1.35}
+.collection-right{font-size:17px;font-weight:950;color:var(--blue)}
+.collection-bar{grid-column:2 / 4;height:10px;background:#EEF3F7;border-radius:999px;overflow:hidden;margin-top:4px}
+.collection-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--mint),var(--sky));box-shadow:0 0 12px rgba(110,207,186,.36)}
+.medal-empty-state{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px 18px;text-align:center;box-shadow:var(--shadow)}
+.medal-empty-icon{font-size:46px;margin-bottom:10px}
+.medal-empty-state .sub{max-width:430px;margin:8px auto 0}
+.medal-grid.unlocked-only{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:14px}
+.medal-card{
+  padding:12px;
+  background:linear-gradient(180deg,#FFFFFF,#F8FAFB);
+  border:1px solid var(--line);
+  border-radius:22px;
+  position:relative;
+  overflow:hidden;
+  min-height:246px;
+  box-shadow:var(--shadow);
+}
+.medal-card::before{content:'';position:absolute;inset:-40px -30px auto auto;width:120px;height:120px;border-radius:50%;background:rgba(110,207,186,.16);filter:blur(4px)}
+.medal-card.unlocked{box-shadow:0 12px 28px rgba(27,58,82,.08), inset 0 0 0 1px rgba(255,255,255,.7);border-color:#D7E6EE}
+.medal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;position:relative;z-index:2}
+.medal-ribbon{width:32px;height:56px;background:linear-gradient(180deg,#1E3A52,#102434 55%,#0D1B27);border-radius:8px 8px 12px 12px;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.medal-ribbon::before{content:'SERGEI\A RUN';white-space:pre;position:absolute;inset:8px 0 auto 0;font-size:7px;line-height:1.05;text-align:center;font-weight:900;color:#F5FBFF;letter-spacing:.08em}
+.medal-badge{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--mint);color:#0B2636;font-weight:900;font-size:12px;box-shadow:0 3px 8px rgba(30,58,82,.12)}
+.medal-coin{width:100%;max-width:178px;aspect-ratio:1;margin:2px auto 10px;position:relative;border-radius:50%;display:grid;place-items:center;border:4px solid #87909A;background:
+  radial-gradient(circle at 30% 24%,rgba(255,255,255,.42),rgba(255,255,255,0) 23%),
+  radial-gradient(circle at 68% 74%,rgba(0,0,0,.40),rgba(0,0,0,0) 28%),
+  radial-gradient(circle at 50% 50%,#C8CDD0 0%,#8B9297 34%,#60666B 58%,#CED2D5 76%,#71777C 100%);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.22), inset 0 -12px 22px rgba(0,0,0,.22), 0 8px 18px rgba(27,58,82,.16);
+}
+.medal-coin::after{content:'';position:absolute;inset:9px;border-radius:50%;border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 0 22px rgba(0,0,0,.2)}
+.medal-coin .scene{position:absolute;inset:18px;border-radius:50%;overflow:hidden;background:
+  radial-gradient(circle at 50% 8%,rgba(255,255,255,.18),transparent 28%),
+  linear-gradient(180deg,#A8B2B8 0%,#79868C 42%,#3F4950 100%);
+}
+.medal-coin .scene::before{content:'';position:absolute;left:7%;right:7%;bottom:21%;height:26%;background:linear-gradient(180deg,#28333C,#17212A);clip-path:polygon(0 100%,10% 72%,18% 80%,30% 40%,43% 58%,56% 22%,67% 54%,76% 36%,89% 66%,100% 44%,100% 100%)}
+.medal-coin .scene::after{content:'';position:absolute;left:17%;right:17%;bottom:0;height:32%;background:repeating-linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.34) 1px,transparent 1px,transparent 6px);opacity:.25}
+.medal-coin .title-ring{position:absolute;inset:9px;border-radius:50%;display:flex;align-items:flex-start;justify-content:center;padding-top:12px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:950;color:#F4F7F9;text-shadow:0 1px 2px rgba(0,0,0,.45);text-align:center;z-index:3}
+.medal-distance{position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;background:linear-gradient(180deg,#2F3740,#18212A);border:2px solid #6F7880;color:#D7FF2C;padding:5px 12px;border-radius:10px;font-size:16px;font-weight:950;letter-spacing:.04em;box-shadow:0 5px 12px rgba(27,58,82,.2);z-index:4}
+.medal-name{text-align:center;color:var(--navy);font-weight:900;font-size:15px;line-height:1.15;margin-top:14px;min-height:36px;position:relative;z-index:2}
+.medal-km{text-align:center;color:var(--text-soft);font-size:13px;margin-top:4px;position:relative;z-index:2}
+.medal-detail-backdrop{position:fixed;inset:0;background:linear-gradient(180deg,#F8FAFB,#EEF5F8);display:flex;align-items:stretch;justify-content:center;padding:0;z-index:1200;color:var(--text)}
+.medal-detail-shell{width:min(100%,760px);background:transparent;border:none;box-shadow:none;border-radius:0;position:relative;padding:18px 20px 42px;overflow:auto;max-width:520px}
+.medal-detail-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.circle-icon-btn{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.72);color:var(--navy);font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+.medal-large-wrap{display:flex;justify-content:center;align-items:center;margin:8px 0 12px;perspective:1500px;position:relative}
+.medal-flip-stage{width:300px;height:388px;display:flex;align-items:center;justify-content:center;touch-action:pan-y;user-select:none;-webkit-user-select:none;--flip-shadow:0}
+.medal-flip-stage::after{content:'';position:absolute;width:240px;height:32px;border-radius:50%;bottom:8px;background:rgba(27,58,82,calc(.09 + var(--flip-shadow) * .14));filter:blur(11px);transform:scaleX(calc(1 - var(--flip-shadow) * .45));pointer-events:none}
+.medal-flip-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;will-change:transform;transition:transform .42s cubic-bezier(.2,.8,.2,1)}
+.medal-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;align-items:center;justify-content:center}
+.medal-front{transform:rotateY(0deg)}
+.medal-edge{transform:rotateY(90deg);pointer-events:none}
+.medal-back{transform:rotateY(180deg)}
+.medal-large{width:100%;display:flex;justify-content:center;align-items:center;flex-direction:column}
+.medal-large .medal-ribbon{width:88px;height:112px;border-radius:18px 18px 10px 10px;background:linear-gradient(180deg,#183047 0%,#203D5A 22%,#0E1722 100%);position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 8px 20px rgba(255,255,255,.04),0 8px 22px rgba(0,0,0,.28)}
+.medal-large .medal-ribbon::before{content:'SERGEI RUN';position:absolute;left:50%;top:20px;transform:translateX(-50%) rotate(-90deg);font-size:20px;font-weight:900;letter-spacing:.04em;color:#fff;white-space:nowrap}
+.medal-large .medal-ribbon::after{content:'';position:absolute;right:10px;bottom:10px;width:16px;height:28px;border-radius:2px;background:linear-gradient(180deg,var(--mint),#BDE9E2);box-shadow:-8px 0 0 0 rgba(110,207,186,.9),-16px 0 0 0 rgba(110,207,186,.7)}
+.medal-large .medal-coin{width:260px;height:306px;border-radius:130px 130px 42px 42px;margin-top:-6px;background:
+  radial-gradient(circle at 30% 20%,rgba(255,255,255,.35),transparent 24%),
+  radial-gradient(circle at 70% 78%,rgba(0,0,0,.22),transparent 32%),
+  linear-gradient(145deg,#7E8589 0%,#D2D6D8 18%,#626A70 40%,#D9DDDF 58%,#586066 74%,#A9B0B5 100%);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.24),inset 0 0 0 10px rgba(20,20,20,.16),inset 0 -20px 28px rgba(0,0,0,.22),0 18px 34px rgba(27,58,82,.23);overflow:hidden;border:0}
+.medal-large .medal-coin::before{content:'';position:absolute;inset:16px;border-radius:112px 112px 28px 28px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.24),inset 0 14px 20px rgba(255,255,255,.08),inset 0 -18px 24px rgba(0,0,0,.18)}
+.medal-large .scene{position:absolute;inset:44px 26px 58px;border-radius:90px 90px 24px 24px;overflow:hidden;background:radial-gradient(circle at 20% 10%,rgba(255,255,255,.14),transparent 22%),linear-gradient(180deg,#7C878F 0%,#626E76 30%,#34404A 64%,#202A33 100%)}
+.medal-large .scene::before{content:'';position:absolute;left:16px;right:16px;bottom:44px;height:2px;background:rgba(255,255,255,.18);box-shadow:0 12px 0 rgba(255,255,255,.08),0 24px 0 rgba(255,255,255,.06)}
+.medal-large .scene::after{content:'';position:absolute;left:24px;right:24px;bottom:18px;height:28px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.26));border-radius:40px}
+.medal-large .title-ring{position:absolute;top:18px;left:18px;right:18px;text-align:center;font-size:13px;line-height:1.15;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#F4F7F9;text-shadow:0 1px 2px rgba(0,0,0,.45);z-index:3}
+.medal-large .medal-distance{bottom:18px;min-width:90px;padding:8px 16px;border-radius:14px;text-align:center;font-size:26px;font-weight:950;color:#D7FF2C;background:linear-gradient(180deg,#2f363d 0%,#181f25 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 4px 12px rgba(0,0,0,.24);border:0}
+.medal-edge-disc{width:34px;height:270px;border-radius:50%;background:linear-gradient(90deg,#343B41,#D5DADD 50%,#5E666C);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 18px 34px rgba(27,58,82,.22)}
+.medal-back-disc{width:260px;height:260px;border-radius:50%;position:relative;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.45),transparent 22%),linear-gradient(145deg,#92999E 0%,#D6DADC 16%,#777F84 38%,#D1D6D8 58%,#6B7479 76%,#B7BEC3 100%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.28),inset 0 0 0 14px rgba(26,28,31,.16),inset 0 -18px 24px rgba(0,0,0,.18),0 18px 30px rgba(27,58,82,.20)}
+.medal-back-disc::before,.medal-back-disc::after{content:'';position:absolute;inset:28px;border-radius:50%;border:4px solid rgba(28,42,52,.78);box-shadow:0 0 0 2px rgba(255,255,255,.65) inset}
+.medal-back-disc::after{inset:68px}
+.medal-back-hole{position:absolute;width:48px;height:48px;border-radius:50%;background:#0B1016;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 5px rgba(255,255,255,.16)}
+.medal-back-text{position:absolute;top:48px;left:24px;right:24px;text-align:center;font-size:12px;line-height:1.35;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:#F6FAFB;text-shadow:0 1px 2px rgba(0,0,0,.35);z-index:3}
+.medal-back-bottom{position:absolute;left:22px;right:22px;bottom:28px;text-align:center;display:grid;gap:8px;z-index:3}
+.medal-back-pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;border-radius:999px;background:rgba(14,24,31,.42);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#fff;font-weight:850;font-size:13px;backdrop-filter:blur(5px)}
+.medal-back-pill b{color:#D7FF2C}
+.medal-gesture-hint{margin-top:6px;text-align:center;font-size:12px;color:var(--text-soft)}
+.medal-detail-title{font-size:30px;color:var(--navy);font-weight:950;text-align:center;margin-top:12px;letter-spacing:-.03em}
+.medal-highlight{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--blue);font-size:14px;font-weight:800;margin-top:10px}
+.detail-divider{width:74px;height:3px;background:linear-gradient(90deg,transparent,var(--mint),transparent);border-radius:999px;margin:18px auto}
+.medal-detail-note{max-width:390px;margin:0 auto;text-align:center;color:var(--text-soft);line-height:1.6}
+.medal-detail-date{text-align:center;color:var(--blue);font-size:18px;font-weight:900;margin-top:14px}
+.medal-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:26px}
+.medal-stat-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+.medal-stat-box small{display:block;color:var(--text-soft);letter-spacing:.18em;text-transform:uppercase;font-size:11px}
+.medal-stat-box b{display:block;color:var(--navy);font-weight:950;font-size:20px;margin-top:8px}
+.medal-insights{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+.medal-insights h3{margin:0 0 12px;color:var(--navy);font-size:18px}
+.medal-insights ul{margin:0;padding-left:18px;color:var(--text-soft);line-height:1.7}
+@media (max-width:560px){
+  .medal-grid.unlocked-only{grid-template-columns:1fr 1fr;gap:12px}
+  .medal-card{min-height:236px;padding:10px}
+  .medal-coin{max-width:156px}
+  .medal-flip-stage{width:290px;height:382px}
+}
