@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhe-I3OnC4l8QZXZE1g4oDirPaBOzpvF8",
@@ -12,7 +12,10 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
-const firestoreDB = getFirestore(firebaseApp);
+const firestoreDB = initializeFirestore(firebaseApp, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
 
 const app = {
   storageKey: 'sergei_run_pwa_v03',
@@ -345,7 +348,7 @@ const app = {
           </div>
         </div>
         <div class="routine-note">✦ Carga plan: ${day.day} / ${day.type === 'run' ? `Carrera ${this.formatNumber(day.km)} km` : 'Fuerza'}</div>
-        <button class="routine-action ${completed ? 'done-action':''}" onclick="app.openSessionModal(${this.escapeJS(JSON.stringify({ fromPlan:true, planName:plan.name, planDay:day.day, type:day.type, plannedKm:day.km || '', date:this.dateForCurrentWeek(day.day), sessionId:session ? session.id : '' }))})">${completed ? '✓ COMPLETADO' : '▶ COMPLETAR'}</button>
+        <button class="routine-action ${completed ? 'done-action':''}" onclick="app.openSessionModalFromEncoded('${encodeURIComponent(JSON.stringify({ fromPlan:true, planName:plan.name, planDay:day.day, type:day.type, plannedKm:day.km || '', date:this.dateForCurrentWeek(day.day), sessionId:session ? session.id : '' }))}')">${completed ? '✓ COMPLETADO' : '▶ COMPLETAR'}</button>
       </article>
     `;
   },
@@ -1117,6 +1120,17 @@ const app = {
     const p = this.db.plans.find(x=>x.id===id); if(!p) return;
     this.db.plans.push({ ...JSON.parse(JSON.stringify(p)), id:`plan_${Date.now()}`, name:`${p.name} copia`, createdAt:new Date().toISOString() });
     this.renderAll();
+  },
+
+
+  openSessionModalFromEncoded(encoded){
+    try{
+      const decoded = JSON.parse(decodeURIComponent(encoded));
+      this.openSessionModal(decoded);
+    }catch(err){
+      console.error('No se pudo abrir la sesión planificada', err);
+      this.openSessionModal();
+    }
   },
 
   openSessionModal(preset = null){
