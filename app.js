@@ -139,7 +139,7 @@ const app = {
     window.scrollTo({ top:0, behavior:'smooth' });
   },
 
-  renderAll(){
+  renderAll(skipSave = false){
     this.renderInicio();
     this.renderEntrenamiento();
     this.renderPlan();
@@ -147,7 +147,7 @@ const app = {
     this.renderNutricion();
     this.renderMedallas();
     if(document.getElementById('progreso').classList.contains('active')) setTimeout(()=>this.renderCharts(), 30);
-    this.save();
+    if(!skipSave) this.save();
   },
 
   header(medals=false){
@@ -275,7 +275,7 @@ const app = {
             <button class="pill light" onclick="app.openExportModal()">Exportar</button>
           </div>
         </div>
-        ${latest.length ? latest.map(s => this.trainingCard(s, false)).join('') : `<div class="empty">Todavía no tienes entrenamientos registrados.</div>`}
+        ${latest.length ? latest.map(s => this.trainingCard(s, true)).join('') : `<div class="empty">Todavía no tienes entrenamientos registrados.</div>`}
       </section>
     `;
   },
@@ -319,7 +319,7 @@ const app = {
       </div>
       <section class="card" style="margin-top:16px">
         <div class="label">Últimas sesiones</div>
-        ${weekSessions.length ? [...weekSessions].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,3).map(s=>this.trainingCard(s, false)).join('') : `<div class="empty">Aún no completas sesiones esta semana.</div>`}
+        ${weekSessions.length ? [...weekSessions].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,3).map(s=>this.trainingCard(s, true)).join('') : `<div class="empty">Aún no completas sesiones esta semana.</div>`}
       </section>
     `;
   },
@@ -422,6 +422,9 @@ const app = {
   },
 
   renderCharts(){
+    if(!document.getElementById('progreso')?.classList.contains('active')) return;
+    if(this.chartRenderLock) return;
+    this.chartRenderLock = true;
     Object.values(this.charts).forEach(ch => { try{ ch.destroy(); }catch(e){} });
     this.charts = {};
     const data = this.getProgressData();
@@ -429,6 +432,7 @@ const app = {
     const common = {
       responsive:true,
       maintainAspectRatio:false,
+      animation:false,
       plugins:{ legend:{ display:false } },
       scales:{
         x:{ ticks:{ color:'#8A9BB0', font:{ size:11 } }, grid:{ display:false } },
@@ -444,13 +448,13 @@ const app = {
         data:{
           labels:data.weights.labels,
           datasets:[
-            { label:'Peso', data:data.weights.values, borderColor:'#1E3A52', backgroundColor:'rgba(30,58,82,.08)', pointBackgroundColor:'#1E3A52', pointRadius:4, tension:.35, fill:true },
-            { label:'Objetivo', data:data.weights.values.map(()=> Number(this.db.goalWeight || 0)), borderColor:'#6ECFBA', borderDash:[8,6], pointRadius:0, tension:0 }
+            { label:'Peso', data:data.weights.values, borderColor:'#6ECFBA', backgroundColor:'rgba(110,207,186,.10)', pointBackgroundColor:'#1E3A52', pointRadius:4, tension:.35, fill:true },
+            { label:'Objetivo', data:data.weights.values.map(()=> Number(this.db.goalWeight || 0)), borderColor:'#1E3A52', borderDash:[8,6], pointRadius:0, tension:0, borderWidth:2 }
           ]
         },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y} kg` } } },
+          plugins:{ legend:{ display:true, labels:{ color:'#1E3A52', boxWidth:12, font:{ size:12, weight:'700' } } }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y} kg` } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step } }
@@ -508,6 +512,7 @@ const app = {
         }
       });
     }
+    this.chartRenderLock = false;
   },
 
   renderNutricion(){
@@ -1134,13 +1139,18 @@ const app = {
   },
 
   openSessionModal(preset = null){
-    let data = { fromPlan:false, type:'run', planName:'', planDay:'', plannedKm:'', date:this.todayISO(), sessionId:'' };
+    let data = { fromPlan:false, type:'run', planName:'', planDay:'', plannedKm:'', date:this.todayISO(), sessionId:'', km:'', timeSeconds:0, steps:'', kcal:'', fc:'', cadence:'', strideLength:'', note:'' };
     if(preset && typeof preset === 'string'){
       try{ data = { ...data, ...JSON.parse(preset) }; }catch(e){}
     } else if (preset && typeof preset === 'object') {
       data = { ...data, ...preset };
     }
-    const title = data.fromPlan ? `Completar ${data.planDay}` : 'Añadir entrenamiento';
+    const title = data.sessionId ? 'Editar entrenamiento' : (data.fromPlan ? `Completar ${data.planDay}` : 'Añadir entrenamiento');
+    const editKmValue = data.km !== '' && data.km !== undefined ? data.km : (data.plannedKm || '');
+    const editSeconds = Number(data.timeSeconds || 0);
+    const editHours = String(Math.floor(editSeconds / 3600)).padStart(2,'0');
+    const editMinutes = String(Math.floor((editSeconds % 3600) / 60)).padStart(2,'0');
+    const editSecs = String(Math.floor(editSeconds % 60)).padStart(2,'0');
     this.showModal(`
       <div class="modal-box">
         <div class="modal-title">${title}</div>
@@ -1150,7 +1160,7 @@ const app = {
           <option value="strength" ${data.type==='strength'?'selected':''}>Fuerza</option>
         </select>
         <input id="sessionDate" type="date" value="${this.escapeAttr(data.date || this.todayISO())}">
-        <input id="sessionDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(data.plannedKm || '')}">
+        <input id="sessionDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(editKmValue)}">
         <div id="runFields">
           <div class="time-picker-label">Duración</div>
           <div class="time-picker">
@@ -1158,20 +1168,20 @@ const app = {
             <div id="sessionMinWheel" class="wheel"></div><div class="wheel-unit">:</div>
             <div id="sessionSecWheel" class="wheel"></div><div class="wheel-unit">h:m:s</div>
           </div>
-          <input id="sessionSteps" type="number" placeholder="Pasos">
+          <input id="sessionSteps" type="number" placeholder="Pasos" value="${this.escapeAttr(data.steps || '')}">
         </div>
-        <input id="sessionKcal" type="number" placeholder="Calorías">
-        <input id="sessionFc" type="number" placeholder="Frecuencia cardíaca media">
-        <input id="sessionCadence" type="number" placeholder="Cadencia promedio (opcional)">
-        <input id="sessionStride" type="number" placeholder="Zancada promedio cm (opcional)">
-        <textarea id="sessionNote" placeholder="Nota opcional"></textarea>
+        <input id="sessionKcal" type="number" placeholder="Calorías" value="${this.escapeAttr(data.kcal || '')}">
+        <input id="sessionFc" type="number" placeholder="Frecuencia cardíaca media" value="${this.escapeAttr(data.fc || '')}">
+        <input id="sessionCadence" type="number" placeholder="Cadencia promedio (opcional)" value="${this.escapeAttr(data.cadence || '')}">
+        <input id="sessionStride" type="number" placeholder="Zancada promedio cm (opcional)" value="${this.escapeAttr(data.strideLength || '')}">
+        <textarea id="sessionNote" placeholder="Nota opcional">${this.escapeHtml(data.note || '')}</textarea>
         <button class="btn" onclick="app.saveSession('${this.escapeAttr(JSON.stringify(data))}')">Guardar sesión</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `, ()=>{
-      this.setupWheel('sessionHourWheel', this.range(0,5).map(v=>String(v).padStart(2,'0')), '00');
-      this.setupWheel('sessionMinWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), '45');
-      this.setupWheel('sessionSecWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), '00');
+      this.setupWheel('sessionHourWheel', this.range(0,5).map(v=>String(v).padStart(2,'0')), editHours);
+      this.setupWheel('sessionMinWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), editMinutes);
+      this.setupWheel('sessionSecWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), editSecs);
       this.toggleSessionFields();
     });
   },
@@ -1236,7 +1246,7 @@ const app = {
   openSessionModalForEdit(id){
     const s = this.db.sessions.find(x=>x.id===id);
     if(!s) return;
-    this.openSessionModal({ fromPlan:s.fromPlan, planName:s.planName, planDay:s.planDay, plannedKm:s.plannedKm, date:s.date, type:s.type, sessionId:s.id });
+    this.openSessionModal({ fromPlan:s.fromPlan, planName:s.planName, planDay:s.planDay, plannedKm:s.plannedKm, date:s.date, type:s.type, sessionId:s.id, km:s.km || '', timeSeconds:s.timeSeconds || 0, steps:s.steps || '', kcal:s.kcal || '', fc:s.fc || '', cadence:s.cadence || '', strideLength:s.strideLength || '', note:s.note || '' });
   },
 
   openExportModal(){
@@ -1377,7 +1387,7 @@ const app = {
           this.db = this.mergeCloudData(this.db, remote);
           localStorage.setItem(this.storageKey, JSON.stringify(this.db));
           this.cloudApplyingRemote = false;
-          this.renderAll();
+          this.renderAll(true);
         }
       }else{
         await this.forceCloudUpload(false);
@@ -1397,7 +1407,7 @@ const app = {
           localStorage.setItem(this.storageKey, JSON.stringify(this.db));
           this.cloudApplyingRemote = false;
           this.cloudStatus = 'synced';
-          this.renderAll();
+          this.renderAll(true);
         }
       }, (err)=>{
         this.cloudStatus = 'error';
