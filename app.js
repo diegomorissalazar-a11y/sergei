@@ -46,6 +46,12 @@ const app = {
     { id:'trail-15k', title:'Trail', distance:15, theme:'trail' },
     { id:'reto-cumbre-21k', title:'Reto Cumbre', distance:21, theme:'cumbre' }
   ],
+  medalAssetCatalog: [
+    { label:'Medalla metálica estándar', value:'' },
+    { label:'Mes del Mar 21K 2026', value:'assets/medals/mes-del-mar-21k-2026.webp' },
+    { label:'Maratón de Santiago 21K 2026', value:'assets/medals/maraton-santiago-21k-2026.webp' },
+    { label:'Gana Santiago 2026', value:'assets/medals/gana-santiago-2026.webp' }
+  ],
 
   init(){
     this.db = this.load();
@@ -104,7 +110,7 @@ const app = {
         pauta:'Menú sugerido de descanso: D: Yogur + pan + 3 huevos · A: 320g corvina + brócoli + champiñones · C: 2 tortillas + pollo + rúcula + palta'
       },
       nutritionLogs:{},
-      version:'0.7.0'
+      version:'0.7.6'
     };
   },
 
@@ -550,7 +556,7 @@ const app = {
         },
         options:{
           ...common,
-          plugins:{ legend:{ display:true, labels:{ color:'#1E3A52', boxWidth:12, font:{ size:12, weight:'700' } } }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y} kg` } } },
+          plugins:{ legend:{ display:true, labels:{ color:'#1E3A52', boxWidth:12, font:{ size:12, weight:'700' } } }, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.weights.fullDates, items), label:(ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y} kg` } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step } }
@@ -567,7 +573,7 @@ const app = {
         data:{ labels:data.weeklyKm.labels, datasets:[{ data:data.weeklyKm.values, backgroundColor:'#43D1B7', borderRadius:12 }] },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y} km` } } },
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.weeklyKm.fullDates, items), label:(ctx)=> `${ctx.parsed.y} km` } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> Number.isInteger(v) ? v : Math.round(v) } }
@@ -584,7 +590,7 @@ const app = {
         data:{ labels:data.sessionPace.labels, datasets:[{ data:data.sessionPace.values, borderColor:'#1E3A52', backgroundColor:'rgba(110,207,186,.1)', fill:true, pointBackgroundColor:'#6ECFBA', pointRadius:4, tension:.35 }] },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> this.formatPaceFromDecimal(ctx.parsed.y) } } },
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionPace.fullDates, items), label:(ctx)=> this.formatPaceFromDecimal(ctx.parsed.y) } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, callback:(v)=> `${v}` } }
@@ -792,7 +798,11 @@ const app = {
         <div class="medal-detail-shell">
           <div class="medal-detail-top">
             <button class="circle-icon-btn" onclick="app.closeModal()">‹</button>
-            <button class="circle-icon-btn" onclick="app.shareRace('${r.id}')">⤴</button>
+            <div class="medal-detail-actions">
+              <button class="circle-icon-btn" onclick="app.openMedalEditModal('${r.id}')">✎</button>
+              <button class="circle-icon-btn danger-mini" onclick="app.deleteMedal('${r.id}')">🗑</button>
+              <button class="circle-icon-btn" onclick="app.shareRace('${r.id}')">⤴</button>
+            </div>
           </div>
           <div class="medal-large-wrap">${medalHtml}</div>
           <div class="medal-detail-title">${this.escapeHtml(r.name)}</div>
@@ -1074,8 +1084,7 @@ const app = {
         <input id="histRunTitle" placeholder="Nombre / título opcional" value="Carrera histórica">
         <input id="histRunDate" type="date" value="${today}">
         <input id="histRunDistance" type="number" step="0.01" placeholder="Distancia km">
-        <input id="histRunMedalAsset" placeholder="Asset medalla opcional · assets/medals/mes-del-mar-2026.webp">
-        <div class="field-help">Opcional. Si lo dejas vacío, se usará la medalla metálica estándar. Si lo completas, también aparecerá en el medallero.</div>
+        <div class="field-help">Se guardará como carrera histórica y aparecerá en el medallero con medalla estándar. Luego puedes editarla desde el medallero y elegir una medalla personalizada.</div>
         <div class="time-picker-label">Tiempo</div>
         <div class="time-picker">
           <div id="histRunHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
@@ -1112,7 +1121,6 @@ const app = {
     const kcal = Number(document.getElementById('histRunKcal').value || 0);
     const weight = Number(document.getElementById('histRunWeight').value || 0);
     const note = document.getElementById('histRunNote').value.trim();
-    const medalAsset = (document.getElementById('histRunMedalAsset')?.value || '').trim();
     if(!date || !km || !timeSeconds){ alert('Falta fecha, distancia o tiempo.'); return; }
     const duplicate = this.db.sessions.some(s => s.type === 'run' && s.date === date && Number(s.km || 0) === km && Number(s.timeSeconds || 0) === timeSeconds);
     if(duplicate && !confirm('Parece un entrenamiento duplicado. ¿Guardar igual?')) return;
@@ -1142,29 +1150,27 @@ const app = {
       historical:true
     };
     this.db.sessions.push(session);
-    if(medalAsset){
-      this.db.completedRaces.push({
-        id:`hist_medal_${date}_${km}_${timeSeconds}_${Date.now()}`,
-        catalogId:this.slugify(title),
-        name:title,
-        date,
-        distance:km,
-        timeSeconds,
-        durationLabel:this.formatDuration(timeSeconds),
-        steps:steps || '',
-        kcal:kcal || '',
-        fc:fc || '',
-        weight:weight || '',
-        note,
-        medalAsset,
-        pace:calc.pace,
-        paceValue:calc.paceValue,
-        speed:calc.speed,
-        cadence:calc.cadenceNumber || '',
-        strideLength:calc.strideNumber || '',
-        historical:true
-      });
-    }
+    this.db.completedRaces.push({
+      id:`hist_medal_${date}_${km}_${timeSeconds}_${Date.now()}`,
+      catalogId:this.slugify(title),
+      name:title,
+      date,
+      distance:km,
+      timeSeconds,
+      durationLabel:this.formatDuration(timeSeconds),
+      steps:steps || '',
+      kcal:kcal || '',
+      fc:fc || '',
+      weight:weight || '',
+      note,
+      medalAsset:'',
+      pace:calc.pace,
+      paceValue:calc.paceValue,
+      speed:calc.speed,
+      cadence:calc.cadenceNumber || '',
+      strideLength:calc.strideNumber || '',
+      historical:true
+    });
     if(weight){ this.addWeightRecord({ date, value:weight, source:'run_history' }); }
     this.closeModal();
     this.renderAll();
@@ -1525,8 +1531,8 @@ const app = {
         <div class="modal-subtitle">Registra el resultado para sumarlo al medallero.</div>
         <input id="medalRaceName" placeholder="Nombre de la carrera" value="${this.escapeAttr(race.title || '')}">
         <input id="medalRaceDate" type="date" value="${this.escapeAttr(race.date || this.todayISO())}">
-        <input id="medalRaceDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(race.distance || '')}">
-        <input id="medalAsset" placeholder="Asset medalla opcional · assets/medals/mes-del-mar-2026.webp">
+        <input id="medalRaceDistance" type="number" step="0.01" placeholder="Distancia km" value="${this.escapeAttr(race.distance || '')}">
+        <div class="modal-subtitle small">La medalla se agregará al medallero. El asset personalizado se puede escoger después desde Editar medalla.</div>
         <div class="time-picker-label">Duración</div>
         <div class="time-picker">
           <div id="raceHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
@@ -1562,14 +1568,13 @@ const app = {
     const fc = Number(document.getElementById('medalFc').value || 0);
     const weight = Number(document.getElementById('medalWeight').value || 0);
     const note = document.getElementById('medalNote').value.trim();
-    const medalAsset = (document.getElementById('medalAsset')?.value || '').trim();
     const calc = this.computeRunMetrics(distance, timeSeconds, steps);
     const obj = {
       id:'race_'+Date.now(),
       catalogId: this.matchCatalogId(name, distance),
       name, date, distance, timeSeconds,
       durationLabel:this.formatDuration(timeSeconds),
-      steps: steps || '', kcal: kcal || '', fc: fc || '', weight: weight || '', note, medalAsset,
+      steps: steps || '', kcal: kcal || '', fc: fc || '', weight: weight || '', note, medalAsset:'',
       pace: calc.pace, paceValue: calc.paceValue, speed: calc.speed, cadence: calc.cadence, strideLength: calc.strideLength
     };
     this.db.completedRaces.push(obj);
@@ -1592,6 +1597,101 @@ const app = {
     const text = `${race.name} · ${race.distance}K · ${race.durationLabel} · ritmo ${race.pace}`;
     navigator.clipboard.writeText(text);
     alert('Resumen de la carrera copiado al portapapeles.');
+  },
+
+
+  medalAssetOptions(selected=''){
+    const known = this.medalAssetCatalog.some(asset => asset.value === selected);
+    const options = this.medalAssetCatalog.map(asset => `<option value="${this.escapeAttr(asset.value)}" ${asset.value === selected ? 'selected' : ''}>${this.escapeHtml(asset.label)}</option>`);
+    if(selected && !known) options.push(`<option value="${this.escapeAttr(selected)}" selected>Asset actual · ${this.escapeHtml(selected)}</option>`);
+    return options.join('');
+  },
+
+  openMedalEditModal(id){
+    const r = this.db.completedRaces.find(x=>x.id===id);
+    if(!r) return;
+    const seconds = Number(r.timeSeconds || 0);
+    const h = String(Math.floor(seconds / 3600)).padStart(2,'0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2,'0');
+    const s = String(Math.floor(seconds % 60)).padStart(2,'0');
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Editar medalla</div>
+        <div class="modal-subtitle">Actualiza datos deportivos y escoge una medalla personalizada del catálogo.</div>
+        <input id="editMedalName" value="${this.escapeAttr(r.name || '')}" placeholder="Nombre de carrera">
+        <input id="editMedalDate" type="date" value="${this.escapeAttr(r.date || this.todayISO())}">
+        <input id="editMedalDistance" type="number" step="0.01" value="${this.escapeAttr(r.distance || '')}" placeholder="Distancia km">
+        <label class="modal-field-label">Medalla</label>
+        <select id="editMedalAsset">${this.medalAssetOptions(r.medalAsset || '')}</select>
+        <div class="time-picker-label">Tiempo</div>
+        <div class="time-picker">
+          <div id="editMedalHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
+          <div id="editMedalMinWheel" class="wheel"></div><div class="wheel-unit">:</div>
+          <div id="editMedalSecWheel" class="wheel"></div><div class="wheel-unit">h:m:s</div>
+        </div>
+        <div class="form-grid">
+          <input id="editMedalFc" type="number" placeholder="FC media" value="${this.escapeAttr(r.fc || '')}">
+          <input id="editMedalSteps" type="number" placeholder="Pasos" value="${this.escapeAttr(r.steps || '')}">
+          <input id="editMedalKcal" type="number" placeholder="Kcal" value="${this.escapeAttr(r.kcal || '')}">
+          <input id="editMedalWeight" type="number" step="0.1" placeholder="Peso del día (kg)" value="${this.escapeAttr(r.weight || '')}">
+          <input id="editMedalCadence" type="number" placeholder="Cadencia promedio (pasos/min) opcional" value="${this.escapeAttr(r.cadence || '')}">
+          <input id="editMedalStride" type="number" placeholder="Zancada / largo de paso (cm) opcional" value="${this.escapeAttr(r.strideLength || '')}">
+          <textarea id="editMedalNote" placeholder="Nota opcional">${this.escapeHtml(r.note || '')}</textarea>
+        </div>
+        <button class="btn" onclick="app.saveMedalEdit('${this.escapeAttr(id)}')">Guardar cambios</button>
+        <button class="btn danger" onclick="app.deleteMedal('${this.escapeAttr(id)}')">Eliminar medalla</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `, ()=>{
+      this.setupWheel('editMedalHourWheel', this.range(0,8).map(v=>String(v).padStart(2,'0')), h);
+      this.setupWheel('editMedalMinWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), m);
+      this.setupWheel('editMedalSecWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), s);
+    });
+  },
+
+  saveMedalEdit(id){
+    const r = this.db.completedRaces.find(x=>x.id===id);
+    if(!r) return;
+    const name = document.getElementById('editMedalName').value.trim() || r.name || 'Carrera';
+    const date = document.getElementById('editMedalDate').value || this.todayISO();
+    const distance = Number(document.getElementById('editMedalDistance').value || 0);
+    const h = Number(document.getElementById('editMedalHourWheel').dataset.selected || 0);
+    const m = Number(document.getElementById('editMedalMinWheel').dataset.selected || 0);
+    const sec = Number(document.getElementById('editMedalSecWheel').dataset.selected || 0);
+    const timeSeconds = h*3600 + m*60 + sec;
+    const steps = Number(document.getElementById('editMedalSteps').value || 0);
+    const kcal = Number(document.getElementById('editMedalKcal').value || 0);
+    const fc = Number(document.getElementById('editMedalFc').value || 0);
+    const weight = Number(document.getElementById('editMedalWeight').value || 0);
+    const cadence = Number(document.getElementById('editMedalCadence').value || 0);
+    const strideLength = Number(document.getElementById('editMedalStride').value || 0);
+    const note = document.getElementById('editMedalNote').value.trim();
+    const medalAsset = document.getElementById('editMedalAsset').value || '';
+    if(!distance || !timeSeconds){ alert('Falta distancia o tiempo.'); return; }
+    const calc = this.computeRunMetrics(distance, timeSeconds, steps);
+    Object.assign(r, {
+      name, date, distance, timeSeconds,
+      durationLabel:this.formatDuration(timeSeconds),
+      steps:steps || '', kcal:kcal || '', fc:fc || '', weight:weight || '', note, medalAsset,
+      pace:calc.pace, paceValue:calc.paceValue, speed:calc.speed,
+      cadence:cadence || calc.cadenceNumber || '',
+      strideLength:strideLength || calc.strideNumber || ''
+    });
+    this.closeModal();
+    this.renderAll();
+    this.go('medallas', document.querySelectorAll('.tab')[5]);
+    this.showToast('Medalla actualizada');
+  },
+
+  deleteMedal(id){
+    const r = this.db.completedRaces.find(x=>x.id===id);
+    if(!r) return;
+    if(!confirm(`¿Eliminar la medalla ${r.name || ''}?`)) return;
+    this.db.completedRaces = this.db.completedRaces.filter(x=>x.id !== id);
+    this.closeModal();
+    this.renderAll();
+    this.go('medallas', document.querySelectorAll('.tab')[5]);
+    this.showToast('Medalla eliminada');
   },
 
   openPlanModal(){
@@ -1685,8 +1785,8 @@ const app = {
         </div>
         <input id="sessionKcal" type="number" placeholder="Calorías" value="${this.escapeAttr(data.kcal || '')}">
         <input id="sessionFc" type="number" placeholder="Frecuencia cardíaca media" value="${this.escapeAttr(data.fc || '')}">
-        <input id="sessionCadence" type="number" placeholder="Cadencia promedio (opcional)" value="${this.escapeAttr(data.cadence || '')}">
-        <input id="sessionStride" type="number" placeholder="Zancada promedio cm (opcional)" value="${this.escapeAttr(data.strideLength || '')}">
+        <input id="sessionCadence" type="number" placeholder="Cadencia promedio (pasos/min) opcional" value="${this.escapeAttr(data.cadence || '')}">
+        <input id="sessionStride" type="number" placeholder="Zancada / largo de paso (cm) opcional" value="${this.escapeAttr(data.strideLength || '')}">
         <textarea id="sessionNote" placeholder="Nota opcional">${this.escapeHtml(data.note || '')}</textarea>
         <button class="btn" onclick="app.saveSession('${this.escapeAttr(JSON.stringify(data))}')">Guardar sesión</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
@@ -1843,7 +1943,7 @@ const app = {
       filteredSessions,
       totalKm:Number(totalKm.toFixed(1)),
       avgAdherence: adherence.values.length ? Math.round(adherence.values.reduce((a,b)=>a+b,0)/adherence.values.length) : 0,
-      weights:{ labels: filteredWeights.map(w => this.shortChartDate(w.date)), values: filteredWeights.map(w => Number(w.value)) },
+      weights:{ labels: filteredWeights.map(w => this.shortChartDate(w.date)), fullDates: filteredWeights.map(w => w.date), values: filteredWeights.map(w => Number(w.value)) },
       weeklyKm:this.weeklyKmSeries(filteredSessions),
       sessionPace:this.sessionPaceSeries(filteredSessions),
       adherence
@@ -1853,11 +1953,11 @@ const app = {
     const map = {};
     sessions.filter(s=>s.type==='run').forEach(s => { const k = this.weekLabel(s.date); map[k] = (map[k] || 0) + Number(s.km || 0); });
     const labels = Object.keys(map).sort((a,b)=> new Date(a.split('|')[0]) - new Date(b.split('|')[0]));
-    return { labels: labels.map(k => this.weekLabelNice(k)), values: labels.map(k => Number(map[k].toFixed(1))) };
+    return { labels: labels.map(k => this.weekLabelNice(k)), fullDates: labels.map(k => k.split('|')[0]), values: labels.map(k => Number(map[k].toFixed(1))) };
   },
   sessionPaceSeries(sessions){
     const runs = sessions.filter(s=>s.type==='run' && Number(s.km) > 0 && Number(s.timeSeconds) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return { labels: runs.map(s => this.shortChartDate(s.date)), values: runs.map(s => Number((s.timeSeconds / s.km / 60).toFixed(2))) };
+    return { labels: runs.map(s => this.shortChartDate(s.date)), fullDates: runs.map(s => s.date), values: runs.map(s => Number((s.timeSeconds / s.km / 60).toFixed(2))) };
   },
   weeklyAdherenceSeries(sessions){
     const plans = [...this.db.plans].sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
@@ -2543,6 +2643,16 @@ const app = {
     const m = String(d.getMonth() + 1).padStart(2,'0');
     const day = String(d.getDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
+  },
+
+  formatDateDMY(date){
+    if(!date) return '';
+    const d = typeof date === 'string' ? new Date(`${date}T12:00:00`) : new Date(date);
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+  },
+  chartDateTitle(dates, items){
+    const idx = items && items.length ? items[0].dataIndex : -1;
+    return idx >= 0 && dates && dates[idx] ? this.formatDateDMY(dates[idx]) : '';
   },
 
   formatDateLong(date){ return date.toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long' }).replace(/(^\w)/, l=>l.toUpperCase()); },

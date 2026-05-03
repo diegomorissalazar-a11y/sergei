@@ -1012,3 +1012,10 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
 @media(max-width:520px){
   .plan-history-training .plan-accordion summary{padding:12px 14px}
 }
+
+/* v0.7.6 medal edit and modal refinements */
+.medal-detail-actions{display:flex;gap:8px;align-items:center}
+.circle-icon-btn.danger-mini{color:#ff5a5f;border-color:rgba(255,90,95,.35)}
+.modal-field-label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+.modal-box select{width:100%;border:1px solid var(--line);border-radius:16px;padding:14px 16px;background:#fff;color:var(--navy);font-weight:800;font-size:15px;outline:none}
+.modal-subtitle.small,.field-help{font-size:12px;line-height:1.35;color:var(--muted);margin:-2px 0 10px}
