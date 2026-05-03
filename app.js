@@ -593,7 +593,7 @@ const app = {
           plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionPace.fullDates, items), label:(ctx)=> this.formatPaceFromDecimal(ctx.parsed.y) } } },
           scales:{
             ...common.scales,
-            y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, callback:(v)=> `${v}` } }
+            y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, callback:(v)=> this.formatPaceFromDecimal(v).replace(' min/km','') } }
           }
         }
       });
@@ -1957,7 +1957,13 @@ const app = {
   },
   sessionPaceSeries(sessions){
     const runs = sessions.filter(s=>s.type==='run' && Number(s.km) > 0 && Number(s.timeSeconds) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return { labels: runs.map(s => this.shortChartDate(s.date)), fullDates: runs.map(s => s.date), values: runs.map(s => Number((s.timeSeconds / s.km / 60).toFixed(2))) };
+    return {
+      labels: runs.map(s => this.shortChartDate(s.date)),
+      fullDates: runs.map(s => s.date),
+      // Mantener precisión completa: no redondear a 2 decimales antes de graficar.
+      // Ej: 02:24:00 / 21K = 6.857142 min/km => tooltip 6:51, no 6:52.
+      values: runs.map(s => Number(s.timeSeconds) / Number(s.km) / 60)
+    };
   },
   weeklyAdherenceSeries(sessions){
     const plans = [...this.db.plans].sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
