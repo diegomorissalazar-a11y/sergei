@@ -810,3 +810,86 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
 .import-row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--navy);font-size:13px}
 .import-row span{color:var(--text-soft);text-align:right}
 .import-errors{padding:10px 12px;border:1px solid rgba(255,93,93,.32);background:rgba(255,93,93,.08);border-radius:14px;color:#B42318;font-size:13px;line-height:1.45}
+
+/* v0.7.1 — accesos carga histórica */
+.historical-progress-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px;
+  margin-bottom:14px;
+}
+.historical-progress-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+.historical-progress-actions .pill{
+  min-height:36px;
+  padding:0 14px;
+  font-size:13px;
+  white-space:nowrap;
+}
+.action-sheet-box{
+  max-width:420px;
+}
+.action-row{
+  width:100%;
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:18px;
+  padding:14px 16px;
+  margin:8px 0;
+  text-align:left;
+  color:var(--navy);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  cursor:pointer;
+}
+.action-row span{
+  font-weight:900;
+}
+.action-row small{
+  color:var(--muted);
+  font-size:12px;
+  text-align:right;
+  max-width:45%;
+}
+.history-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin:14px 0;
+  max-height:48vh;
+  overflow:auto;
+}
+.history-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+}
+.history-row b{
+  color:var(--navy);
+  display:block;
+}
+.history-row small{
+  color:var(--muted);
+  display:block;
+  margin-top:3px;
+}
+@media (max-width:640px){
+  .historical-progress-card{align-items:flex-start;flex-direction:column;}
+  .historical-progress-actions{justify-content:flex-start;width:100%;}
+  .historical-progress-actions .pill{flex:1 1 100%;}
+  .action-row{align-items:flex-start;flex-direction:column;}
+  .action-row small{text-align:left;max-width:none;}
+}

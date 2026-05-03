@@ -242,7 +242,7 @@ const app = {
           <div class="label">Objetivo de peso</div>
           <div class="btn-row compact-actions">
             <button class="pill light" onclick="app.openWeightModal()">+ Peso</button>
-            <button class="icon-btn" onclick="app.openGoalWeightModal()">✎</button>
+            <button class="icon-btn" title="Más opciones de peso" onclick="app.openWeightActionsMenu()">⋯</button>
           </div>
         </div>
         <div class="weight-compact-grid">
@@ -395,6 +395,17 @@ const app = {
       <div class="range-filter">
         ${[4,8,16,'all'].map(r => `<button class="range-btn ${this.progressRange===r?'active':''}" onclick="app.setProgressRange(${r === 'all' ? `'all'` : r})">${r==='all'?'Todo':`${r} semanas`}</button>`).join('')}
       </div>
+      <section class="card historical-progress-card">
+        <div>
+          <div class="label">Carga histórica</div>
+          <div class="sub">Completa tu historial para mejorar gráficos, tendencias y señales.</div>
+        </div>
+        <div class="historical-progress-actions">
+          <button class="pill" onclick="app.openHistoricRunModal()">+ Carrera histórica</button>
+          <button class="pill light" onclick="app.openHistoricTrainingModal()">+ Entrenamiento histórico</button>
+          <button class="pill light" onclick="app.openImportCSVModal()">Importar CSV</button>
+        </div>
+      </section>
       <section class="progress-kpis">
         <div class="kpi-card"><div class="kpi-label">Peso actual</div><div class="kpi-value">${this.latestWeight() ? `${this.formatNumber(this.latestWeight().value)} kg` : '--'}</div></div>
         <div class="kpi-card"><div class="kpi-label">Sesiones</div><div class="kpi-value">${data.filteredSessions.length}</div></div>
@@ -1094,6 +1105,54 @@ const app = {
     return true;
   },
 
+  openHistoricTrainingModal(){
+    this.openSessionModal({ historical:true, fromPlan:false, type:'run', date:this.todayISO(), title:'Entrenamiento histórico' });
+  },
+
+  openWeightActionsMenu(){
+    this.showModal(`
+      <div class="modal-box compact action-sheet-box">
+        <div class="modal-title">Peso</div>
+        <div class="modal-subtitle">Gestiona peso actual, histórico y objetivo.</div>
+        <button class="action-row" onclick="app.closeModal(); app.openWeightModal();"><span>+ Peso de hoy</span><small>Registro rápido</small></button>
+        <button class="action-row" onclick="app.closeModal(); app.openHistoricWeightModal();"><span>Agregar peso histórico</span><small>Fecha antigua + composición corporal</small></button>
+        <button class="action-row" onclick="app.closeModal(); app.openWeightHistoryModal();"><span>Ver historial de peso</span><small>Editar o eliminar registros</small></button>
+        <button class="action-row" onclick="app.closeModal(); app.openImportCSVModal('weight');"><span>Importar CSV de peso</span><small>Varios registros desde Excel</small></button>
+        <button class="action-row" onclick="app.closeModal(); app.openGoalWeightModal();"><span>Editar objetivo</span><small>Peso objetivo y progreso</small></button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  openWeightHistoryModal(){
+    const rows = [...this.db.weights].sort((a,b)=> new Date(b.date)-new Date(a.date));
+    this.showModal(`
+      <div class="modal-box compact">
+        <div class="modal-title">Historial de peso</div>
+        <div class="modal-subtitle">${rows.length ? `${rows.length} registros guardados` : 'Aún no hay registros.'}</div>
+        <div class="history-list">
+          ${rows.length ? rows.map(w=>`
+            <div class="history-row">
+              <div><b>${this.formatNumber(w.value)} kg</b><small>${this.formatDateShort(w.date)}${w.bodyFat ? ` · grasa ${this.formatNumber(w.bodyFat)}%` : ''}${w.muscleMass ? ` · músculo ${this.formatNumber(w.muscleMass)} kg` : ''}</small></div>
+              <button class="mini-btn" onclick="app.deleteWeightRecord('${w.id || `${w.date}_${w.value}`}')">Eliminar</button>
+            </div>
+          `).join('') : '<div class="empty">Sin registros de peso.</div>'}
+        </div>
+        <button class="btn secondary" onclick="app.closeModal()">Cerrar</button>
+      </div>
+    `);
+  },
+
+  deleteWeightRecord(key){
+    const idx = this.db.weights.findIndex(w => (w.id || `${w.date}_${w.value}`) === key);
+    if(idx < 0) return;
+    if(!confirm('¿Eliminar este registro de peso?')) return;
+    this.db.weights.splice(idx,1);
+    this.renderAll();
+    this.openWeightHistoryModal();
+    this.showToast('Registro eliminado');
+  },
+
   optionalNumber(id){
     const el = document.getElementById(id);
     if(!el || el.value === '') return '';
@@ -1101,14 +1160,14 @@ const app = {
     return Number.isFinite(n) ? n : '';
   },
 
-  openImportCSVModal(){
+  openImportCSVModal(type = 'run'){
     this.showModal(`
       <div class="modal-box">
         <div class="modal-title">Pegar CSV histórico</div>
         <div class="modal-subtitle">Puedes pegar carreras o pesos desde Excel. Usa encabezados simples.</div>
         <div class="import-tabs">
-          <button id="csvTabRun" class="range-btn active" onclick="app.setCSVType('run')">Carreras</button>
-          <button id="csvTabWeight" class="range-btn" onclick="app.setCSVType('weight')">Peso</button>
+          <button id="csvTabRun" class="range-btn ${type === 'run' ? 'active' : ''}" onclick="app.setCSVType('run')">Carreras</button>
+          <button id="csvTabWeight" class="range-btn ${type === 'weight' ? 'active' : ''}" onclick="app.setCSVType('weight')">Peso</button>
         </div>
         <div id="csvHelp" class="csv-help">Formato carreras: fecha,distancia,tiempo,fc,pasos,kcal,titulo</div>
         <textarea id="csvInput" class="csv-area" placeholder="fecha,distancia,tiempo,fc,pasos,kcal,titulo\n2026-04-29,4.85,00:36:45,135,5200,343,Jueves Noche — Trote"></textarea>
@@ -1119,8 +1178,8 @@ const app = {
         </div>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
-    `);
-    this.csvImportType = 'run';
+    `, ()=>{ this.setCSVType(type); });
+    this.csvImportType = type;
   },
 
   setCSVType(type){
@@ -1561,7 +1620,8 @@ const app = {
       fc: fc || '',
       cadence: cadence || calc.cadence || '',
       strideLength: stride || calc.strideLength || '',
-      note
+      note,
+      historical: !!preset.historical
     };
     const idx = this.db.sessions.findIndex(s=>s.id===obj.id);
     if(idx >= 0) this.db.sessions[idx] = obj; else this.db.sessions.push(obj);
