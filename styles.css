@@ -797,3 +797,16 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
   #inicio .export-button{height:38px;padding:0 11px;font-size:13px}
   .toast-snackbar{font-size:16px;min-width:250px}
 }
+
+/* =========================
+   CARGA HISTÓRICA
+========================= */
+.import-actions .btn{min-width:130px}
+.import-tabs{display:flex;gap:10px;margin:18px 0 12px}
+.csv-help{font-size:13px;color:var(--text-soft);line-height:1.4;background:#F5F9FC;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.csv-area{width:100%;min-height:180px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:13px;line-height:1.45;background:#FAFCFD;border:1px solid var(--line);border-radius:16px;padding:14px;color:var(--navy)}
+.csv-preview{margin-top:12px;display:grid;gap:8px}
+.import-summary{padding:10px 12px;border:1px solid rgba(110,207,186,.35);background:rgba(110,207,186,.12);border-radius:14px;color:var(--navy);font-size:13px}
+.import-row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--navy);font-size:13px}
+.import-row span{color:var(--text-soft);text-align:right}
+.import-errors{padding:10px 12px;border:1px solid rgba(255,93,93,.32);background:rgba(255,93,93,.08);border-radius:14px;color:#B42318;font-size:13px;line-height:1.45}

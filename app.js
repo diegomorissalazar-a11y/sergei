@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { initializeFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhe-I3OnC4l8QZXZE1g4oDirPaBOzpvF8",
@@ -21,7 +21,6 @@ const app = {
   storageKey: 'sergei_run_pwa_v03',
   cloudStatus: 'local',
   cloudError: '',
-  cloudUnsubscribe: null,
   cloudSaveTimer: null,
   cloudReady: false,
   cloudApplyingRemote: false,
@@ -105,7 +104,7 @@ const app = {
         pauta:'Menú sugerido de descanso: D: Yogur + pan + 3 huevos · A: 320g corvina + brócoli + champiñones · C: 2 tortillas + pollo + rúcula + palta'
       },
       nutritionLogs:{},
-      version:'0.3'
+      version:'0.7.0'
     };
   },
 
@@ -901,11 +900,21 @@ const app = {
         <div class="pauta-row">
           <div class="label" style="letter-spacing:.22em">Sincronización nube</div>
           <div class="sub" style="margin-top:8px">Estado: <b>${this.cloudStatusLabel()}</b>${this.cloudError ? ` · ${this.escapeHtml(this.cloudError)}` : ''}</div>
+          <div class="sub" style="margin-top:4px">Sync estable: sin listener en tiempo real. Usa bajar nube para traer cambios de otro dispositivo.</div>
           <input id="syncIdInput" placeholder="Sync ID" value="${this.escapeAttr(this.db.sync?.syncId || 'diego-sergei-run')}">
           <div class="btn-row">
             <button class="btn" onclick="app.saveProfile(); app.connectCloudFromProfile();">Conectar nube</button>
             <button class="btn secondary" onclick="app.forceCloudUpload()">Subir local</button>
             <button class="btn secondary" onclick="app.forceCloudDownload()">Bajar nube</button>
+          </div>
+        </div>
+        <div class="pauta-row">
+          <div class="label" style="letter-spacing:.22em">Carga histórica</div>
+          <div class="sub" style="margin-top:8px">Registra carreras antiguas o pesos con grasa y masa muscular opcional.</div>
+          <div class="btn-row import-actions">
+            <button class="btn secondary" onclick="app.openHistoricRunModal()">+ Carrera</button>
+            <button class="btn secondary" onclick="app.openHistoricWeightModal()">+ Peso</button>
+            <button class="btn secondary" onclick="app.openImportCSVModal()">Pegar CSV</button>
           </div>
         </div>
         <div class="btn-row">
@@ -941,6 +950,309 @@ const app = {
       this.closeModal();
       this.renderAll();
     }
+  },
+
+
+  openHistoricRunModal(){
+    const today = this.todayISO();
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Añadir carrera histórica</div>
+        <div class="modal-subtitle">Carga fecha, distancia, tiempo y KPIs. Se guardará como entrenamiento histórico y sincronizará con nube.</div>
+        <input id="histRunTitle" placeholder="Nombre / título opcional" value="Carrera histórica">
+        <input id="histRunDate" type="date" value="${today}">
+        <input id="histRunDistance" type="number" step="0.01" placeholder="Distancia km">
+        <div class="time-picker-label">Tiempo</div>
+        <div class="time-picker">
+          <div id="histRunHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
+          <div id="histRunMinWheel" class="wheel"></div><div class="wheel-unit">:</div>
+          <div id="histRunSecWheel" class="wheel"></div><div class="wheel-unit">h:m:s</div>
+        </div>
+        <div class="form-grid">
+          <input id="histRunFc" type="number" placeholder="FC media">
+          <input id="histRunSteps" type="number" placeholder="Pasos">
+          <input id="histRunKcal" type="number" placeholder="Kcal">
+          <input id="histRunWeight" type="number" step="0.1" placeholder="Peso ese día (opcional)">
+          <textarea id="histRunNote" placeholder="Nota opcional"></textarea>
+        </div>
+        <button class="btn" onclick="app.saveHistoricRun()">Guardar carrera</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `, ()=>{
+      this.setupWheel('histRunHourWheel', this.range(0,6).map(v=>String(v).padStart(2,'0')), '00');
+      this.setupWheel('histRunMinWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), '30');
+      this.setupWheel('histRunSecWheel', this.range(0,59).map(v=>String(v).padStart(2,'0')), '00');
+    });
+  },
+
+  saveHistoricRun(){
+    const title = document.getElementById('histRunTitle').value.trim() || 'Carrera histórica';
+    const date = document.getElementById('histRunDate').value || this.todayISO();
+    const km = Number(document.getElementById('histRunDistance').value || 0);
+    const h = Number(document.getElementById('histRunHourWheel').dataset.selected || 0);
+    const m = Number(document.getElementById('histRunMinWheel').dataset.selected || 0);
+    const sec = Number(document.getElementById('histRunSecWheel').dataset.selected || 0);
+    const timeSeconds = h*3600 + m*60 + sec;
+    const fc = Number(document.getElementById('histRunFc').value || 0);
+    const steps = Number(document.getElementById('histRunSteps').value || 0);
+    const kcal = Number(document.getElementById('histRunKcal').value || 0);
+    const weight = Number(document.getElementById('histRunWeight').value || 0);
+    const note = document.getElementById('histRunNote').value.trim();
+    if(!date || !km || !timeSeconds){ alert('Falta fecha, distancia o tiempo.'); return; }
+    const duplicate = this.db.sessions.some(s => s.type === 'run' && s.date === date && Number(s.km || 0) === km && Number(s.timeSeconds || 0) === timeSeconds);
+    if(duplicate && !confirm('Parece un entrenamiento duplicado. ¿Guardar igual?')) return;
+    const calc = this.computeRunMetrics(km, timeSeconds, steps);
+    const session = {
+      id:`hist_run_${date}_${km}_${timeSeconds}_${Date.now()}`,
+      title,
+      type:'run',
+      fromPlan:false,
+      planName:'',
+      planDay:'',
+      plannedKm:0,
+      km,
+      diffKm:'',
+      date,
+      timeSeconds,
+      durationLabel:this.formatDuration(timeSeconds),
+      pace:calc.pace,
+      paceValue:calc.paceValue,
+      speed:calc.speed,
+      steps:steps || '',
+      kcal:kcal || '',
+      fc:fc || '',
+      cadence:calc.cadenceNumber || '',
+      strideLength:calc.strideNumber || '',
+      note,
+      historical:true
+    };
+    this.db.sessions.push(session);
+    if(weight){ this.addWeightRecord({ date, value:weight, source:'run_history' }); }
+    this.closeModal();
+    this.renderAll();
+    this.showToast('Carrera histórica guardada');
+  },
+
+  openHistoricWeightModal(){
+    const latest = this.latestWeight();
+    const current = latest ? Number(latest.value) : Number(this.db.startWeight || 100);
+    const kg = Math.floor(current);
+    const dec = Math.round((current - kg) * 10);
+    this.showModal(`
+      <div class="modal-box compact">
+        <div class="modal-title">Añadir peso histórico</div>
+        <div class="modal-subtitle">Registra peso y métricas corporales opcionales.</div>
+        <input id="histWeightDate" type="date" value="${this.todayISO()}">
+        <div class="weight-picker-label">Peso</div>
+        <div class="weight-picker">
+          <div id="histWeightKgWheel" class="wheel"></div><div class="wheel-unit">.</div>
+          <div id="histWeightDecWheel" class="wheel"></div><div class="wheel-unit">kg</div>
+        </div>
+        <div class="form-grid">
+          <input id="histBodyFat" type="number" step="0.1" placeholder="% grasa opcional">
+          <input id="histMuscleMass" type="number" step="0.1" placeholder="Masa muscular kg opcional">
+          <input id="histBodyWater" type="number" step="0.1" placeholder="% agua opcional">
+          <input id="histVisceralFat" type="number" step="0.1" placeholder="Grasa visceral opcional">
+        </div>
+        <button class="btn" onclick="app.saveHistoricWeight()">Guardar peso</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `, ()=>{
+      this.setupWheel('histWeightKgWheel', this.range(50,180), kg);
+      this.setupWheel('histWeightDecWheel', this.range(0,9), dec);
+    });
+  },
+
+  saveHistoricWeight(){
+    const kg = Number(document.getElementById('histWeightKgWheel').dataset.selected || 0);
+    const dec = Number(document.getElementById('histWeightDecWheel').dataset.selected || 0);
+    const date = document.getElementById('histWeightDate').value || this.todayISO();
+    const value = Number(`${kg}.${dec}`);
+    if(!date || !value){ alert('Falta fecha o peso.'); return; }
+    const record = {
+      date,
+      value,
+      bodyFat: this.optionalNumber('histBodyFat'),
+      muscleMass: this.optionalNumber('histMuscleMass'),
+      bodyWater: this.optionalNumber('histBodyWater'),
+      visceralFat: this.optionalNumber('histVisceralFat'),
+      source:'manual_history'
+    };
+    this.addWeightRecord(record);
+    this.closeModal();
+    this.renderAll();
+    this.showToast('Peso histórico guardado');
+  },
+
+  addWeightRecord(record){
+    if(!record || !record.date || !record.value) return false;
+    const exists = this.db.weights.some(w => w.date === record.date && Number(w.value) === Number(record.value));
+    if(exists) return false;
+    this.db.weights.push(record);
+    this.db.weights.sort((a,b)=> new Date(a.date)-new Date(b.date));
+    if(!this.db.startWeight) this.db.startWeight = Number(record.value);
+    return true;
+  },
+
+  optionalNumber(id){
+    const el = document.getElementById(id);
+    if(!el || el.value === '') return '';
+    const n = Number(el.value);
+    return Number.isFinite(n) ? n : '';
+  },
+
+  openImportCSVModal(){
+    this.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">Pegar CSV histórico</div>
+        <div class="modal-subtitle">Puedes pegar carreras o pesos desde Excel. Usa encabezados simples.</div>
+        <div class="import-tabs">
+          <button id="csvTabRun" class="range-btn active" onclick="app.setCSVType('run')">Carreras</button>
+          <button id="csvTabWeight" class="range-btn" onclick="app.setCSVType('weight')">Peso</button>
+        </div>
+        <div id="csvHelp" class="csv-help">Formato carreras: fecha,distancia,tiempo,fc,pasos,kcal,titulo</div>
+        <textarea id="csvInput" class="csv-area" placeholder="fecha,distancia,tiempo,fc,pasos,kcal,titulo\n2026-04-29,4.85,00:36:45,135,5200,343,Jueves Noche — Trote"></textarea>
+        <div id="csvPreview" class="csv-preview"></div>
+        <div class="btn-row">
+          <button class="btn secondary" onclick="app.previewCSVImport()">Vista previa</button>
+          <button class="btn" onclick="app.applyCSVImport()">Importar</button>
+        </div>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+    this.csvImportType = 'run';
+  },
+
+  setCSVType(type){
+    this.csvImportType = type;
+    document.getElementById('csvTabRun')?.classList.toggle('active', type === 'run');
+    document.getElementById('csvTabWeight')?.classList.toggle('active', type === 'weight');
+    const help = document.getElementById('csvHelp');
+    const input = document.getElementById('csvInput');
+    if(type === 'run'){
+      help.textContent = 'Formato carreras: fecha,distancia,tiempo,fc,pasos,kcal,titulo';
+      input.placeholder = 'fecha,distancia,tiempo,fc,pasos,kcal,titulo\n2026-04-29,4.85,00:36:45,135,5200,343,Jueves Noche — Trote';
+    } else {
+      help.textContent = 'Formato peso: fecha,peso,grasa,musculo,agua,grasa_visceral';
+      input.placeholder = 'fecha,peso,grasa,musculo,agua,grasa_visceral\n2026-04-29,109,32.5,62.1,45,12';
+    }
+    const preview = document.getElementById('csvPreview');
+    if(preview) preview.innerHTML = '';
+  },
+
+  previewCSVImport(){
+    const parsed = this.parseCSVImport();
+    const preview = document.getElementById('csvPreview');
+    if(!preview) return;
+    if(!parsed.rows.length){ preview.innerHTML = '<div class="empty">No se detectaron filas válidas.</div>'; return; }
+    preview.innerHTML = `<div class="import-summary"><b>${parsed.rows.length}</b> filas válidas · <b>${parsed.duplicates}</b> posibles duplicados · <b>${parsed.errors.length}</b> errores</div>` +
+      parsed.rows.slice(0,5).map(r => `<div class="import-row"><b>${r.date}</b><span>${this.csvImportType === 'run' ? `${this.formatNumber(r.km)} km · ${this.formatDuration(r.timeSeconds)} · FC ${r.fc || '--'}` : `${this.formatNumber(r.value)} kg · grasa ${r.bodyFat || '--'} · músculo ${r.muscleMass || '--'}`}</span></div>`).join('') +
+      (parsed.errors.length ? `<div class="import-errors">${parsed.errors.slice(0,3).join('<br>')}</div>` : '');
+  },
+
+  applyCSVImport(){
+    const parsed = this.parseCSVImport();
+    if(!parsed.rows.length){ alert('No hay filas válidas para importar.'); return; }
+    if(parsed.duplicates && !confirm(`Hay ${parsed.duplicates} posibles duplicados. ¿Importar solo filas nuevas?`)) return;
+    let imported = 0;
+    if(this.csvImportType === 'run'){
+      parsed.rows.forEach(r => {
+        const exists = this.db.sessions.some(s => s.type === 'run' && s.date === r.date && Number(s.km || 0) === r.km && Number(s.timeSeconds || 0) === r.timeSeconds);
+        if(exists) return;
+        const calc = this.computeRunMetrics(r.km, r.timeSeconds, r.steps);
+        this.db.sessions.push({
+          id:`csv_run_${r.date}_${r.km}_${r.timeSeconds}_${imported}_${Date.now()}`,
+          title:r.title || `${this.weekdayName(r.date)} — Carrera`,
+          type:'run', fromPlan:false, planName:'', planDay:'', plannedKm:0, km:r.km, diffKm:'', date:r.date, timeSeconds:r.timeSeconds,
+          durationLabel:this.formatDuration(r.timeSeconds), pace:calc.pace, paceValue:calc.paceValue, speed:calc.speed,
+          steps:r.steps || '', kcal:r.kcal || '', fc:r.fc || '', cadence:calc.cadenceNumber || '', strideLength:calc.strideNumber || '', note:'Importado por CSV', historical:true
+        });
+        imported++;
+      });
+    } else {
+      parsed.rows.forEach(r => { if(this.addWeightRecord(r)) imported++; });
+    }
+    this.closeModal();
+    this.renderAll();
+    this.showToast(`${imported} filas importadas`);
+  },
+
+  parseCSVImport(){
+    const text = document.getElementById('csvInput')?.value || '';
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const result = { rows:[], errors:[], duplicates:0 };
+    if(!lines.length) return result;
+    const header = this.splitCSVLine(lines[0]).map(h=>this.slugify(h).replaceAll('-','_'));
+    const hasHeader = header.includes('fecha') || header.includes('date');
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+    dataLines.forEach((line, idx) => {
+      const cols = this.splitCSVLine(line);
+      try{
+        if(this.csvImportType === 'run'){
+          const obj = this.mapCSVRow(cols, header, hasHeader, ['fecha','distancia','tiempo','fc','pasos','kcal','titulo']);
+          const date = this.normalizeDate(obj.fecha || obj.date);
+          const km = Number(String(obj.distancia || obj.km || '').replace(',','.'));
+          const timeSeconds = this.parseDurationToSeconds(obj.tiempo || obj.time || obj.duracion || obj.duration);
+          if(!date || !km || !timeSeconds) throw new Error('fecha/distancia/tiempo inválidos');
+          const row = { date, km, timeSeconds, fc:Number(obj.fc || obj.frecuencia || 0) || '', steps:Number(obj.pasos || obj.steps || 0) || '', kcal:Number(obj.kcal || obj.calorias || 0) || '', title:obj.titulo || obj.title || '' };
+          if(this.db.sessions.some(s => s.type === 'run' && s.date === row.date && Number(s.km || 0) === row.km && Number(s.timeSeconds || 0) === row.timeSeconds)) result.duplicates++;
+          result.rows.push(row);
+        } else {
+          const obj = this.mapCSVRow(cols, header, hasHeader, ['fecha','peso','grasa','musculo','agua','grasa_visceral']);
+          const date = this.normalizeDate(obj.fecha || obj.date);
+          const value = Number(String(obj.peso || obj.weight || '').replace(',','.'));
+          if(!date || !value) throw new Error('fecha/peso inválidos');
+          const row = { date, value, bodyFat:Number(String(obj.grasa || obj.body_fat || '').replace(',','.')) || '', muscleMass:Number(String(obj.musculo || obj.muscle || '').replace(',','.')) || '', bodyWater:Number(String(obj.agua || obj.water || '').replace(',','.')) || '', visceralFat:Number(String(obj.grasa_visceral || obj.visceral || '').replace(',','.')) || '', source:'csv_history' };
+          if(this.db.weights.some(w => w.date === row.date && Number(w.value) === row.value)) result.duplicates++;
+          result.rows.push(row);
+        }
+      }catch(e){ result.errors.push(`Fila ${idx+1}: ${e.message}`); }
+    });
+    return result;
+  },
+
+  splitCSVLine(line){
+    const out=[]; let cur=''; let quote=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){ quote=!quote; continue; }
+      if((ch===',' || ch===';') && !quote){ out.push(cur.trim()); cur=''; continue; }
+      cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  },
+
+  mapCSVRow(cols, header, hasHeader, fallback){
+    const obj = {};
+    if(hasHeader){ header.forEach((h,i)=> obj[h] = cols[i] ?? ''); }
+    else { fallback.forEach((h,i)=> obj[h] = cols[i] ?? ''); }
+    return obj;
+  },
+
+  normalizeDate(value){
+    if(!value) return '';
+    const raw = String(value).trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(m){
+      const y = m[3].length === 2 ? `20${m[3]}` : m[3];
+      return `${y}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+    }
+    const d = new Date(raw);
+    if(!isNaN(d)) return this.formatCSVDate(d);
+    return '';
+  },
+
+  parseDurationToSeconds(value){
+    if(!value) return 0;
+    const raw = String(value).trim();
+    if(/^\d+(\.\d+)?$/.test(raw)) return Math.round(Number(raw) * 60);
+    const parts = raw.split(':').map(Number);
+    if(parts.some(n=>!Number.isFinite(n))) return 0;
+    if(parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+    if(parts.length === 2) return parts[0]*60 + parts[1];
+    return 0;
   },
 
   openGoalWeightModal(){
@@ -1023,8 +1335,8 @@ const app = {
     const race = this.db.race || {};
     this.showModal(`
       <div class="modal-box">
-        <div class="modal-title">Ya corrí</div>
-        <div class="modal-subtitle">Registra la carrera completada para sumarla al medallero.</div>
+        <div class="modal-title">Registrar resultado</div>
+        <div class="modal-subtitle">Registra el resultado para sumarlo al medallero.</div>
         <input id="medalRaceName" placeholder="Nombre de la carrera" value="${this.escapeAttr(race.title || '')}">
         <input id="medalRaceDate" type="date" value="${this.escapeAttr(race.date || this.todayISO())}">
         <input id="medalRaceDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(race.distance || '')}">
@@ -1406,6 +1718,7 @@ const app = {
     }
     try{
       this.cloudStatus = 'connecting';
+      this.cloudError = '';
       const ref = this.syncDocRef();
       const snap = await getDoc(ref);
       if(snap.exists()){
@@ -1422,26 +1735,7 @@ const app = {
       }
       this.cloudReady = true;
       this.cloudStatus = 'synced';
-      if(this.cloudUnsubscribe) this.cloudUnsubscribe();
-      this.cloudUnsubscribe = onSnapshot(ref, (snapshot)=>{
-        if(!snapshot.exists()) return;
-        const remote = snapshot.data()?.data;
-        if(!remote || this.cloudApplyingRemote) return;
-        const remoteAt = Number(remote.sync?.cloudUpdatedAt || snapshot.data()?.updatedAt || 0);
-        const localAt = Number(this.db.sync?.cloudUpdatedAt || 0);
-        if(remoteAt > localAt){
-          this.cloudApplyingRemote = true;
-          this.db = this.mergeCloudData(this.db, remote);
-          localStorage.setItem(this.storageKey, JSON.stringify(this.db));
-          this.cloudApplyingRemote = false;
-          this.cloudStatus = 'synced';
-          this.renderAll(true);
-        }
-      }, (err)=>{
-        this.cloudStatus = 'error';
-        this.cloudError = err.message || String(err);
-        console.error('Firestore sync error', err);
-      });
+      this.cloudError = '';
     }catch(err){
       this.cloudStatus = 'error';
       this.cloudError = err.message || String(err);
@@ -1500,7 +1794,6 @@ const app = {
     }
   },
   connectCloudFromProfile(){
-    if(this.cloudUnsubscribe) this.cloudUnsubscribe();
     this.cloudReady = false;
     this.closeModal();
     this.setupCloudSync();
