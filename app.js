@@ -171,7 +171,7 @@ const app = {
     const activePlan = this.getActivePlan();
     const due = this.getDuePlanMetrics(activePlan);
     const weekSessions = this.sessionsThisWeek();
-    const latest = [...this.db.sessions].sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0,2);
+    const latest = this.getHomeTrainingSessions();
     const weight = this.latestWeight();
     const weightProgress = this.weightProgress();
     const signals = this.getSmartSignals();
@@ -308,19 +308,96 @@ const app = {
   renderEntrenamiento(){
     const page = document.getElementById('entrenamiento');
     const activePlan = this.getActivePlan();
-    const weekSessions = this.sessionsThisWeek();
-    const planDays = activePlan ? activePlan.days.filter(d=>d.enabled) : [];
+    const activePlanDays = activePlan ? this.getPlanDaysCurrentOrder(activePlan) : [];
+    const previousPlans = this.getPreviousPlans();
+    const rangeSessions = this.getHomeTrainingSessions();
+
     page.innerHTML = `
       ${this.header()}
       <button class="free-session" onclick="app.openSessionModal()">+ Sesión libre</button>
-      <div class="label" style="margin-bottom:10px">Mis rutinas</div>
-      <div class="routine-list">
-        ${planDays.length ? planDays.map((d, idx)=> this.planRoutineCard(activePlan, d, idx + 1)).join('') : `<div class="empty">Crea tu plan semanal para ver tus días de entrenamiento aquí.</div>`}
-      </div>
+
+      ${activePlan ? `
+        <section class="card active-plan-training">
+          <div class="section-head compact-section-head">
+            <div>
+              <div class="label">Plan activo</div>
+              <div class="card-title">${activePlan.name}</div>
+              <div class="sub">Ordenado desde hoy y con completados editables.</div>
+            </div>
+            <button class="pill light" onclick="app.go('plan', document.querySelectorAll('.tab')[2])">Plan</button>
+          </div>
+          <div class="routine-list">
+            ${activePlanDays.length ? activePlanDays.map((d, idx)=> this.planRoutineCard(activePlan, d, idx + 1)).join('') : `<div class="empty">Este plan no tiene días activos.</div>`}
+          </div>
+        </section>
+      ` : `
+        <section class="card">
+          <div class="label">Mis rutinas</div>
+          <div class="empty">Crea un plan semanal para ver tus días de entrenamiento aquí.</div>
+        </section>
+      `}
+
+      ${previousPlans.length ? `
+        <section class="card plan-history-training">
+          <div class="label">Planes anteriores</div>
+          <div class="sub" style="margin-bottom:12px">Quedan contraídos para no cargar la pantalla. Puedes abrirlos cuando necesites revisar o editar sesiones completadas.</div>
+          ${previousPlans.map(plan => this.previousPlanAccordion(plan)).join('')}
+        </section>
+      ` : ''}
+
       <section class="card" style="margin-top:16px">
-        <div class="label">Últimas sesiones</div>
-        ${weekSessions.length ? [...weekSessions].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,3).map(s=>this.trainingCard(s, true)).join('') : `<div class="empty">Aún no completas sesiones esta semana.</div>`}
+        <div class="section-head compact-section-head">
+          <div>
+            <div class="label">Historial de entrenamientos</div>
+            <div class="sub">${this.exportRangeLabel()} · editable</div>
+          </div>
+          <button class="pill light export-range-pill" onclick="app.cycleExportRange()">▣ ${this.exportRangeLabel()}</button>
+        </div>
+        ${rangeSessions.length ? rangeSessions.map(s=>this.trainingCard(s, true)).join('') : `<div class="empty">Aún no hay sesiones en este rango.</div>`}
       </section>
+    `;
+  },
+
+  getHomeTrainingSessions(){
+    const since = this.getExportStartDate(this.exportRange);
+    return [...this.db.sessions]
+      .filter(s => !since || new Date(`${s.date}T12:00:00`) >= since)
+      .sort((a,b)=> new Date(`${b.date}T12:00:00`) - new Date(`${a.date}T12:00:00`) || String(b.id).localeCompare(String(a.id)));
+  },
+
+  getPlanDaysCurrentOrder(plan){
+    const enabled = plan.days.filter(d=>d.enabled);
+    const todayIdx = this.dayNames.indexOf(this.weekdayName(this.todayISO()));
+    if(todayIdx < 0) return enabled;
+    return enabled.sort((a,b)=>{
+      const ai = this.dayNames.indexOf(a.day), bi = this.dayNames.indexOf(b.day);
+      const ad = (ai - todayIdx + 7) % 7;
+      const bd = (bi - todayIdx + 7) % 7;
+      return ad - bd;
+    });
+  },
+
+  getPreviousPlans(){
+    const active = this.getActivePlan();
+    return [...this.db.plans]
+      .filter(p => !active || p.id !== active.id)
+      .sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+  },
+
+  previousPlanAccordion(plan){
+    const sessions = this.db.sessions
+      .filter(s => s.fromPlan && s.planName === plan.name)
+      .sort((a,b)=> new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`));
+    return `
+      <details class="plan-accordion">
+        <summary>
+          <span>Más · ${plan.name}</span>
+          <small>${sessions.length} completada${sessions.length === 1 ? '' : 's'}</small>
+        </summary>
+        <div class="accordion-body">
+          ${sessions.length ? sessions.map(s=>this.trainingCard(s, true)).join('') : `<div class="empty">Sin sesiones completadas asociadas a este plan.</div>`}
+        </div>
+      </details>
     `;
   },
 
@@ -344,7 +421,7 @@ const app = {
               ${completed ? `<div class="completed-pill">✓ Entrenamiento completado</div>` : ''}
               ${completed && day.type === 'run' ? `<div class="diff-pill ${diff >= 0 ? 'pos':'neg'}">${diff >= 0 ? '+' : ''}${this.formatNumber(diff)} km vs plan</div>` : ''}
             </div>
-            <div class="dots">•••</div>
+            ${completed ? `<button class="mini-btn" onclick="app.openSessionModalForEdit('${session.id}')">Editar</button>` : `<span class="tag">Pendiente</span>`}
           </div>
         </div>
         <div class="routine-note">✦ Carga plan: ${day.day} / ${day.type === 'run' ? `Carrera ${this.formatNumber(day.km)} km` : 'Fuerza'}</div>
@@ -1695,7 +1772,7 @@ const app = {
     const order = [4, 8, 16, 'all'];
     const idx = order.findIndex(x => x === this.exportRange);
     this.exportRange = order[(idx + 1) % order.length];
-    this.renderInicio();
+    this.renderAll(true);
   },
 
   copyTrainingExport(){
