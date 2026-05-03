@@ -274,11 +274,12 @@ const app = {
   },
 
   trainingCard(session, withEdit=false){
+    const view = this.sessionMetricsView(session);
     const icon = session.type === 'run' ? '🏃' : '🏋️';
     const title = session.title || `${this.weekdayName(session.date)} — ${session.type === 'run' ? 'Carrera' : 'Fuerza'}`;
     const summary = session.type === 'run'
       ? `Plan: ${session.plannedKm || '--'} km · Real: ${session.km ? this.formatNumber(session.km) : '--'} km · Dif: ${session.diffKm !== undefined && session.diffKm !== '' ? `${Number(session.diffKm) >= 0 ? '+' : ''}${this.formatNumber(session.diffKm)} km` : '--'}`
-      : `Tiempo: ${session.durationLabel || '--'} · FC: ${session.fc || '--'} · Kcal: ${session.kcal || '--'}`;
+      : `Tiempo: ${view.durationLabel || '--'} · FC: ${session.fc || '--'} · Kcal: ${session.kcal || '--'}`;
 
     return `
       <article class="workout-compact">
@@ -292,9 +293,9 @@ const app = {
             ${withEdit ? `<button class="mini-btn" onclick="app.openSessionModalForEdit('${session.id}')">Editar</button>` : ''}
           </div>
           <div class="workout-metrics">
-            <div><small>Tiempo</small><b>${session.durationLabel || '--'}</b></div>
+            <div><small>Tiempo</small><b>${view.durationLabel || '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatNumber(session.km)} km` : '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (session.pace || '--') : (session.series || '--')}</b></div>
+            <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (view.pace || '--') : (session.series || '--')}</b></div>
             <div><small>FC media</small><b>${session.fc || '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps || '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
           </div>
@@ -506,7 +507,7 @@ const app = {
         data:{ labels:data.sessionPace.labels, datasets:[{ data:data.sessionPace.values, borderColor:'#1E3A52', backgroundColor:'rgba(110,207,186,.1)', fill:true, pointBackgroundColor:'#6ECFBA', pointRadius:4, tension:.35 }] },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y} min/km` } } },
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> this.formatPaceFromDecimal(ctx.parsed.y) } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, callback:(v)=> `${v}` } }
@@ -1714,6 +1715,7 @@ const app = {
     let csv = 'fecha,dia_semana,tipo,origen,plan,dia_plan,km_plan,km_real,diferencia_km,tiempo,segundos,ritmo_min_km,velocidad_km_h,pasos,kcal,fc_media,cadencia_pasos_min,zancada_cm,peso_mas_cercano_kg,fecha_peso_usado\n';
 
     sessions.forEach(s => {
+      const view = this.sessionMetricsView(s);
       const closestWeight = this.closestWeightToDate(s.date);
       const dateObj = new Date(s.date);
       csv += [
@@ -1726,10 +1728,10 @@ const app = {
         s.plannedKm || '',
         s.km || '',
         s.diffKm || '',
-        s.durationLabel || '',
+        view.durationLabel || '',
         s.timeSeconds || '',
-        s.pace || '',
-        s.speed || '',
+        view.pace || '',
+        view.speed || '',
         s.steps || '',
         s.kcal || '',
         s.fc || '',
@@ -2356,14 +2358,39 @@ const app = {
     const percent = Math.max(0, Math.min(100, Math.round((lost / totalToLose) * 100)));
     return { current, lost, remaining, percent };
   },
+  sessionMetricsView(session){
+    if(!session || session.type !== 'run') return session || {};
+    const km = Number(session.km || 0);
+    const timeSeconds = Number(session.timeSeconds || 0);
+    const calc = this.computeRunMetrics(km, timeSeconds, Number(session.steps || 0));
+    return {
+      ...session,
+      durationLabel: timeSeconds > 0 ? this.formatDuration(timeSeconds) : (session.durationLabel || '--'),
+      pace: calc.pace || session.pace || '--',
+      paceValue: calc.paceValue ?? session.paceValue ?? null,
+      speed: calc.speed || session.speed || '--',
+      cadence: session.cadence || calc.cadence || '',
+      strideLength: session.strideLength || calc.strideLength || ''
+    };
+  },
+  formatPaceSeconds(totalSecondsPerKm){
+    const rounded = Math.round(Number(totalSecondsPerKm || 0));
+    if(!Number.isFinite(rounded) || rounded <= 0) return '--';
+    const minutes = Math.floor(rounded / 60);
+    const seconds = rounded % 60;
+    return `${minutes}:${String(seconds).padStart(2,'0')} min/km`;
+  },
+  formatPaceFromDecimal(minutesPerKm){
+    const value = Number(minutesPerKm || 0);
+    if(!Number.isFinite(value) || value <= 0) return '--';
+    return this.formatPaceSeconds(value * 60);
+  },
   computeRunMetrics(km, timeSeconds, steps){
     km = Number(km || 0); timeSeconds = Number(timeSeconds || 0); steps = Number(steps || 0);
     let pace='--', paceValue=null, speed='--', cadence='--', cadenceNumber=null, strideLength='--', strideNumber=null;
     if(km > 0 && timeSeconds > 0){
       const paceSec = timeSeconds / km;
-      const min = Math.floor(paceSec / 60);
-      const sec = Math.round(paceSec % 60).toString().padStart(2,'0');
-      pace = `${min}:${sec} min/km`;
+      pace = this.formatPaceSeconds(paceSec);
       paceValue = Number((paceSec / 60).toFixed(2));
       speed = Number(((km / timeSeconds) * 3600).toFixed(2));
     }
