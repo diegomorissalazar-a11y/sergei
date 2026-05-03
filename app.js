@@ -657,17 +657,27 @@ const app = {
   },
 
   medalCard(medal){
-    return `
-      <article class="medal-card unlocked" onclick="app.openMedalDetail('${medal.id}')">
-        <div class="medal-top">
-          <div class="medal-ribbon"></div>
-          <div class="medal-badge">✓</div>
+    const customFront = medal.medalAsset ? `
+        <div class="medal-asset-coin">
+          <img src="${this.escapeAttr(medal.medalAsset)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-coin').classList.add('asset-error')">
+          <div class="medal-asset-shine"></div>
+          <div class="medal-distance asset-distance">${this.formatNumber(medal.distance)}K</div>
         </div>
+      ` : `
         <div class="medal-coin">
           <div class="scene"></div>
           <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
           <div class="medal-distance">${this.formatNumber(medal.distance)}K</div>
         </div>
+      `;
+
+    return `
+      <article class="medal-card unlocked ${medal.medalAsset ? 'has-asset' : ''}" onclick="app.openMedalDetail('${medal.id}')">
+        <div class="medal-top">
+          <div class="medal-ribbon"></div>
+          <div class="medal-badge">✓</div>
+        </div>
+        ${customFront}
         <div class="medal-name">${this.escapeHtml(medal.title)}</div>
         <div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div>
       </article>
@@ -686,6 +696,7 @@ const app = {
         distance: Number(r.distance || 0),
         unlocked: true,
         raceData: r,
+        medalAsset: r.medalAsset || '',
         ringTitle: r.name.length > 24 ? r.name.slice(0,24) : r.name
       };
     });
@@ -741,19 +752,31 @@ const app = {
     const paceText = r.pace || '--';
     const timeText = r.durationLabel || '--';
     const distanceText = r.distance ? `${this.formatNumber(r.distance)}K` : `${this.formatNumber(medal.distance)}K`;
+    const customFront = r.medalAsset ? `
+      <div class="medal-large apple-medal-front custom-medal-front">
+        <div class="medal-ribbon"></div>
+        <div class="medal-large-asset-shell">
+          <img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" onerror="this.closest('.medal-large-asset-shell').classList.add('asset-error')">
+          <div class="medal-large-metal-shine"></div>
+          <div class="medal-distance">${distanceText}</div>
+        </div>
+      </div>
+    ` : `
+      <div class="medal-large apple-medal-front">
+        <div class="medal-ribbon"></div>
+        <div class="medal-coin">
+          <div class="scene"></div>
+          <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
+          <div class="medal-distance">${distanceText}</div>
+        </div>
+      </div>
+    `;
 
     return `
       <div class="medal-flip-stage" id="medalFlipStage">
         <div class="medal-flip-inner" id="medalFlipInner">
           <div class="medal-face medal-front">
-            <div class="medal-large apple-medal-front">
-              <div class="medal-ribbon"></div>
-              <div class="medal-coin">
-                <div class="scene"></div>
-                <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
-                <div class="medal-distance">${distanceText}</div>
-              </div>
-            </div>
+            ${customFront}
           </div>
           <div class="medal-face medal-edge">
             <div class="medal-edge-disc"></div>
@@ -973,6 +996,8 @@ const app = {
         <input id="histRunTitle" placeholder="Nombre / título opcional" value="Carrera histórica">
         <input id="histRunDate" type="date" value="${today}">
         <input id="histRunDistance" type="number" step="0.01" placeholder="Distancia km">
+        <input id="histRunMedalAsset" placeholder="Asset medalla opcional · assets/medals/mes-del-mar-2026.webp">
+        <div class="field-help">Opcional. Si lo dejas vacío, se usará la medalla metálica estándar. Si lo completas, también aparecerá en el medallero.</div>
         <div class="time-picker-label">Tiempo</div>
         <div class="time-picker">
           <div id="histRunHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
@@ -1009,6 +1034,7 @@ const app = {
     const kcal = Number(document.getElementById('histRunKcal').value || 0);
     const weight = Number(document.getElementById('histRunWeight').value || 0);
     const note = document.getElementById('histRunNote').value.trim();
+    const medalAsset = (document.getElementById('histRunMedalAsset')?.value || '').trim();
     if(!date || !km || !timeSeconds){ alert('Falta fecha, distancia o tiempo.'); return; }
     const duplicate = this.db.sessions.some(s => s.type === 'run' && s.date === date && Number(s.km || 0) === km && Number(s.timeSeconds || 0) === timeSeconds);
     if(duplicate && !confirm('Parece un entrenamiento duplicado. ¿Guardar igual?')) return;
@@ -1038,6 +1064,29 @@ const app = {
       historical:true
     };
     this.db.sessions.push(session);
+    if(medalAsset){
+      this.db.completedRaces.push({
+        id:`hist_medal_${date}_${km}_${timeSeconds}_${Date.now()}`,
+        catalogId:this.slugify(title),
+        name:title,
+        date,
+        distance:km,
+        timeSeconds,
+        durationLabel:this.formatDuration(timeSeconds),
+        steps:steps || '',
+        kcal:kcal || '',
+        fc:fc || '',
+        weight:weight || '',
+        note,
+        medalAsset,
+        pace:calc.pace,
+        paceValue:calc.paceValue,
+        speed:calc.speed,
+        cadence:calc.cadenceNumber || '',
+        strideLength:calc.strideNumber || '',
+        historical:true
+      });
+    }
     if(weight){ this.addWeightRecord({ date, value:weight, source:'run_history' }); }
     this.closeModal();
     this.renderAll();
@@ -1399,6 +1448,7 @@ const app = {
         <input id="medalRaceName" placeholder="Nombre de la carrera" value="${this.escapeAttr(race.title || '')}">
         <input id="medalRaceDate" type="date" value="${this.escapeAttr(race.date || this.todayISO())}">
         <input id="medalRaceDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(race.distance || '')}">
+        <input id="medalAsset" placeholder="Asset medalla opcional · assets/medals/mes-del-mar-2026.webp">
         <div class="time-picker-label">Duración</div>
         <div class="time-picker">
           <div id="raceHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
@@ -1434,13 +1484,14 @@ const app = {
     const fc = Number(document.getElementById('medalFc').value || 0);
     const weight = Number(document.getElementById('medalWeight').value || 0);
     const note = document.getElementById('medalNote').value.trim();
+    const medalAsset = (document.getElementById('medalAsset')?.value || '').trim();
     const calc = this.computeRunMetrics(distance, timeSeconds, steps);
     const obj = {
       id:'race_'+Date.now(),
       catalogId: this.matchCatalogId(name, distance),
       name, date, distance, timeSeconds,
       durationLabel:this.formatDuration(timeSeconds),
-      steps: steps || '', kcal: kcal || '', fc: fc || '', weight: weight || '', note,
+      steps: steps || '', kcal: kcal || '', fc: fc || '', weight: weight || '', note, medalAsset,
       pace: calc.pace, paceValue: calc.paceValue, speed: calc.speed, cadence: calc.cadence, strideLength: calc.strideLength
     };
     this.db.completedRaces.push(obj);
