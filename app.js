@@ -278,7 +278,7 @@ const app = {
     const icon = session.type === 'run' ? '🏃' : '🏋️';
     const title = session.title || `${this.weekdayName(session.date)} — ${session.type === 'run' ? 'Carrera' : 'Fuerza'}`;
     const summary = session.type === 'run'
-      ? `Plan: ${session.plannedKm || '--'} km · Real: ${session.km ? this.formatNumber(session.km) : '--'} km · Dif: ${session.diffKm !== undefined && session.diffKm !== '' ? `${Number(session.diffKm) >= 0 ? '+' : ''}${this.formatNumber(session.diffKm)} km` : '--'}`
+      ? `Plan: ${session.plannedKm ? this.formatDistance(session.plannedKm) : '--'} km · Real: ${session.km ? this.formatDistance(session.km) : '--'} km · Dif: ${session.diffKm !== undefined && session.diffKm !== '' ? `${Number(session.diffKm) >= 0 ? '+' : ''}${this.formatDistance(session.diffKm)} km` : '--'}`
       : `Tiempo: ${view.durationLabel || '--'} · FC: ${session.fc || '--'} · Kcal: ${session.kcal || '--'}`;
 
     return `
@@ -294,7 +294,7 @@ const app = {
           </div>
           <div class="workout-metrics">
             <div><small>Tiempo</small><b>${view.durationLabel || '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatNumber(session.km)} km` : '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatDistance(session.km)} km` : '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (view.pace || '--') : (session.series || '--')}</b></div>
             <div><small>FC media</small><b>${session.fc || '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps || '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
@@ -1255,7 +1255,7 @@ const app = {
     if(!preview) return;
     if(!parsed.rows.length){ preview.innerHTML = '<div class="empty">No se detectaron filas válidas.</div>'; return; }
     preview.innerHTML = `<div class="import-summary"><b>${parsed.rows.length}</b> filas válidas · <b>${parsed.duplicates}</b> posibles duplicados · <b>${parsed.errors.length}</b> errores</div>` +
-      parsed.rows.slice(0,5).map(r => `<div class="import-row"><b>${r.date}</b><span>${this.csvImportType === 'run' ? `${this.formatNumber(r.km)} km · ${this.formatDuration(r.timeSeconds)} · FC ${r.fc || '--'}` : `${this.formatNumber(r.value)} kg · grasa ${r.bodyFat || '--'} · músculo ${r.muscleMass || '--'}`}</span></div>`).join('') +
+      parsed.rows.slice(0,5).map(r => `<div class="import-row"><b>${r.date}</b><span>${this.csvImportType === 'run' ? `${this.formatDistance(r.km)} km · ${this.formatDuration(r.timeSeconds)} · FC ${r.fc || '--'}` : `${this.formatNumber(r.value)} kg · grasa ${r.bodyFat || '--'} · músculo ${r.muscleMass || '--'}`}</span></div>`).join('') +
       (parsed.errors.length ? `<div class="import-errors">${parsed.errors.slice(0,3).join('<br>')}</div>` : '');
   },
 
@@ -1596,7 +1596,7 @@ const app = {
           <option value="strength" ${data.type==='strength'?'selected':''}>Fuerza</option>
         </select>
         <input id="sessionDate" type="date" value="${this.escapeAttr(data.date || this.todayISO())}">
-        <input id="sessionDistance" type="number" step="0.1" placeholder="Distancia km" value="${this.escapeAttr(editKmValue)}">
+        <input id="sessionDistance" type="number" step="0.01" placeholder="Distancia km" value="${this.escapeAttr(editKmValue)}">
         <div id="runFields">
           <div class="time-picker-label">Duración</div>
           <div class="time-picker">
@@ -1660,7 +1660,7 @@ const app = {
       planDay: preset.planDay || '',
       plannedKm: Number(preset.plannedKm || 0),
       km: km || '',
-      diffKm: type === 'run' && preset.plannedKm !== '' ? Number((km - Number(preset.plannedKm || 0)).toFixed(1)) : '',
+      diffKm: type === 'run' && preset.plannedKm !== '' ? Number((km - Number(preset.plannedKm || 0)).toFixed(2)) : '',
       date,
       timeSeconds,
       durationLabel: type === 'run' ? this.formatDuration(timeSeconds) : '--',
@@ -2505,6 +2505,12 @@ const app = {
     return `${y}-${m}-${day}`;
   },
   formatNumber(v){ const n = Number(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(1); },
+  formatDistance(v){
+    const n = Number(v || 0);
+    if(!Number.isFinite(n)) return '0';
+    const rounded = Math.round(n * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
+  },
   range(a,b){ return Array.from({length:b-a+1}, (_,i)=> a+i); },
   csvSafe(value){ const text = String(value ?? ''); return (text.includes(',') || text.includes('\n') || text.includes('"')) ? `"${text.replaceAll('"','""')}"` : text; },
   slugify(text){ return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); },
