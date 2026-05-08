@@ -300,10 +300,11 @@ const app = {
           </div>
           <div class="workout-metrics">
             <div><small>Tiempo</small><b>${view.durationLabel || '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatDistance(session.km)} km` : '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatThousands(session.km, true)} km` : '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (view.pace || '--') : (session.series || '--')}</b></div>
             <div><small>FC media</small><b>${session.fc || '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps || '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
+            <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps ? this.formatThousands(session.steps) : '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
+            ${session.type === 'run' ? `<div><small>Zancada</small><b>${view.strideLength ? `${this.formatThousands(view.strideLength)} cm` : '--'}</b></div>` : ''}
           </div>
           <div class="workout-summary">${summary}</div>
         </div>
@@ -518,8 +519,18 @@ const app = {
         <div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>
         ${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}
       </section>
-
-
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">FC media</div><div class="sub">frecuencia cardíaca por sesión</div></div>
+        ${data.sessionFC.labels.length ? `<div class="chart-box"><canvas id="chartFC"></canvas></div>` : `<div class="chart-empty">Registra FC en tus sesiones para ver este gráfico.</div>`}
+      </section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Pasos promedio</div><div class="sub">por sesión de carrera</div></div>
+        ${data.sessionSteps.labels.length ? `<div class="chart-box"><canvas id="chartSteps"></canvas></div>` : `<div class="chart-empty">Registra pasos en tus sesiones para ver este gráfico.</div>`}
+      </section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Zancada</div><div class="sub">cm por sesión de carrera</div></div>
+        ${data.sessionStride.labels.length ? `<div class="chart-box"><canvas id="chartStride"></canvas></div>` : `<div class="chart-empty">Registra pasos y distancia para ver la zancada.</div>`}
+      </section>
 
       ${this.renderProgressSignals()}
     `;
@@ -616,6 +627,49 @@ const app = {
         }
       });
     }
+
+    const fcCanvas = document.getElementById('chartFC');
+    if(fcCanvas && data.sessionFC.labels.length){
+      const axis = this.getNiceAxisBounds(data.sessionFC.values, { clampZero:true });
+      this.charts.fc = new Chart(fcCanvas, {
+        type:'line',
+        data:{ labels:data.sessionFC.labels, datasets:[{ data:data.sessionFC.values, borderColor:'#E05A5A', backgroundColor:'rgba(224,90,90,.10)', fill:true, pointBackgroundColor:'#E05A5A', pointRadius:4, tension:.35 }] },
+        options:{
+          ...common,
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionFC.fullDates, items), label:(ctx)=> `FC: ${ctx.parsed.y} bpm` } } },
+          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> `${v}` } } }
+        }
+      });
+    }
+
+    const stepsCanvas = document.getElementById('chartSteps');
+    if(stepsCanvas && data.sessionSteps.labels.length){
+      const axis = this.getNiceAxisBounds(data.sessionSteps.values, { clampZero:true });
+      this.charts.steps = new Chart(stepsCanvas, {
+        type:'bar',
+        data:{ labels:data.sessionSteps.labels, datasets:[{ data:data.sessionSteps.values, backgroundColor:'#7B8FD4', borderRadius:10 }] },
+        options:{
+          ...common,
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionSteps.fullDates, items), label:(ctx)=> `${this.formatThousands(ctx.parsed.y)} pasos` } } },
+          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> this.formatThousands(v) } } }
+        }
+      });
+    }
+
+    const strideCanvas = document.getElementById('chartStride');
+    if(strideCanvas && data.sessionStride.labels.length){
+      const axis = this.getNiceAxisBounds(data.sessionStride.values, { clampZero:true });
+      this.charts.stride = new Chart(strideCanvas, {
+        type:'line',
+        data:{ labels:data.sessionStride.labels, datasets:[{ data:data.sessionStride.values, borderColor:'#F4A33A', backgroundColor:'rgba(244,163,58,.10)', fill:true, pointBackgroundColor:'#F4A33A', pointRadius:4, tension:.35 }] },
+        options:{
+          ...common,
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionStride.fullDates, items), label:(ctx)=> `${ctx.parsed.y} cm` } } },
+          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> `${v} cm` } } }
+        }
+      });
+    }
+
     this.chartRenderLock = false;
   },
 
@@ -1978,6 +2032,9 @@ const app = {
       weights:{ labels: filteredWeights.map(w => this.shortChartDate(w.date)), fullDates: filteredWeights.map(w => w.date), values: filteredWeights.map(w => Number(w.value)) },
       weeklyKm:this.weeklyKmSeries(filteredSessions),
       sessionPace:this.sessionPaceSeries(filteredSessions),
+      sessionFC:this.sessionFCSeries(filteredSessions),
+      sessionSteps:this.sessionStepsSeries(filteredSessions),
+      sessionStride:this.sessionStrideSeries(filteredSessions),
       adherence
     };
   },
@@ -1995,6 +2052,33 @@ const app = {
       // Mantener precisión completa: no redondear a 2 decimales antes de graficar.
       // Ej: 02:24:00 / 21K = 6.857142 min/km => tooltip 6:51, no 6:52.
       values: runs.map(s => Number(s.timeSeconds) / Number(s.km) / 60)
+    };
+  },
+  sessionFCSeries(sessions){
+    const runs = sessions.filter(s => s.type === 'run' && Number(s.fc) > 0)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+    return {
+      labels: runs.map(s => this.shortChartDate(s.date)),
+      fullDates: runs.map(s => s.date),
+      values: runs.map(s => Number(s.fc))
+    };
+  },
+  sessionStepsSeries(sessions){
+    const runs = sessions.filter(s => s.type === 'run' && Number(s.steps) > 0)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+    return {
+      labels: runs.map(s => this.shortChartDate(s.date)),
+      fullDates: runs.map(s => s.date),
+      values: runs.map(s => Number(s.steps))
+    };
+  },
+  sessionStrideSeries(sessions){
+    const runs = sessions.filter(s => s.type === 'run' && Number(s.strideLength) > 0)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+    return {
+      labels: runs.map(s => this.shortChartDate(s.date)),
+      fullDates: runs.map(s => s.date),
+      values: runs.map(s => Number(s.strideLength))
     };
   },
   weeklyAdherenceSeries(sessions){
@@ -2726,6 +2810,16 @@ const app = {
     return `${y}-${m}-${day}`;
   },
   formatNumber(v){ const n = Number(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(1); },
+  formatThousands(v, isDecimal=false){
+    const n = Number(v || 0);
+    if(!Number.isFinite(n)) return '0';
+    if(isDecimal){
+      const rounded = Math.round(n * 100) / 100;
+      const str = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
+      return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  },
   formatDistance(v){
     const n = Number(v || 0);
     if(!Number.isFinite(n)) return '0';
