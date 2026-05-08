@@ -47,15 +47,14 @@ const app = {
     { id:'reto-cumbre-21k', title:'Reto Cumbre', distance:21, theme:'cumbre' }
   ],
   medalAssetCatalog: [
-    { label:'Medalla metálica estándar', value:'', front:'', back:'', side:'' },
-    { label:'Mes del Mar 21K · limpio', value:'mes-del-mar-21k-clean', front:'assets/medals/mes-del-mar-21k-front.jpg', back:'assets/medals/mes-del-mar-21k-back.jpg', side:'assets/medals/mes-del-mar-21k-side.jpg' },
-    { label:'Maratón de Santiago 21K · limpio', value:'maraton-santiago-21k-clean', front:'assets/medals/maraton-santiago-21k-front.jpg', back:'assets/medals/maraton-santiago-21k-back.jpg', side:'assets/medals/maraton-santiago-21k-side.jpg' },
-    { label:'Gana Santiago · limpio', value:'gana-santiago-clean', front:'assets/medals/gana-santiago-front.jpg', back:'assets/medals/gana-santiago-back.jpg', side:'assets/medals/gana-santiago-side.jpg' }
+    { label:'Medalla metálica estándar', value:'' },
+    { label:'Mes del Mar 21K 2026', value:'assets/medals/mes-del-mar-21k-2026.webp' },
+    { label:'Maratón de Santiago 21K 2026', value:'assets/medals/maraton-santiago-21k-2026.webp' },
+    { label:'Gana Santiago 2026', value:'assets/medals/gana-santiago-2026.webp' }
   ],
 
   init(){
     this.db = this.load();
-    this.normalizeDatabase();
     if(!this.db.startWeight && this.db.weights.length){
       this.db.startWeight = this.db.weights[0].value;
     }
@@ -111,7 +110,7 @@ const app = {
         pauta:'Menú sugerido de descanso: D: Yogur + pan + 3 huevos · A: 320g corvina + brócoli + champiñones · C: 2 tortillas + pollo + rúcula + palta'
       },
       nutritionLogs:{},
-      version:'0.7.8'
+      version:'0.7.6'
     };
   },
 
@@ -124,54 +123,6 @@ const app = {
       }
     }catch(e){ console.error(e); }
     return this.defaultDB();
-  },
-
-  getMedalAssetConfig(value=''){
-    if(!value) return null;
-    const direct = this.medalAssetCatalog.find(asset => asset.value === value);
-    if(direct) return direct;
-    const legacyMap = {
-      'assets/medals/mes-del-mar-21k-2026.webp':'mes-del-mar-21k-clean',
-      'assets/medals/mes-del-mar-21k-2026.png':'mes-del-mar-21k-clean',
-      'assets/medals/maraton-santiago-21k-2026.webp':'maraton-santiago-21k-clean',
-      'assets/medals/maraton-santiago-21k-2026.png':'maraton-santiago-21k-clean',
-      'assets/medals/gana-santiago-2026.webp':'gana-santiago-clean',
-      'assets/medals/gana-santiago-2026.png':'gana-santiago-clean'
-    };
-    const normalized = legacyMap[value] || value;
-    return this.medalAssetCatalog.find(asset => asset.value === normalized) || null;
-  },
-
-  normalizeDatabase(){
-    if(!this.db) return;
-    this.db.version = '0.7.8';
-    this.db.sessions = (this.db.sessions || []).map(session => {
-      if(session?.type !== 'run') return session;
-      const calc = this.computeRunMetrics(Number(session.km || 0), Number(session.timeSeconds || 0), Number(session.steps || 0));
-      return {
-        ...session,
-        durationLabel: Number(session.timeSeconds || 0) > 0 ? this.formatDuration(Number(session.timeSeconds || 0)) : (session.durationLabel || '--'),
-        pace: calc.pace || session.pace || '--',
-        paceValue: calc.paceValue ?? session.paceValue ?? null,
-        speed: calc.speed || session.speed || '--',
-        cadence: session.cadence || calc.cadenceNumber || '',
-        strideLength: session.strideLength || calc.strideNumber || ''
-      };
-    });
-    this.db.completedRaces = (this.db.completedRaces || []).map(r => {
-      const calc = this.computeRunMetrics(Number(r.distance || 0), Number(r.timeSeconds || 0), Number(r.steps || 0));
-      const assetConfig = this.getMedalAssetConfig(r.medalAsset || '');
-      return {
-        ...r,
-        medalAsset: assetConfig ? assetConfig.value : (r.medalAsset || ''),
-        durationLabel: Number(r.timeSeconds || 0) > 0 ? this.formatDuration(Number(r.timeSeconds || 0)) : (r.durationLabel || '--'),
-        pace: calc.pace || r.pace || '--',
-        paceValue: calc.paceValue ?? r.paceValue ?? null,
-        speed: calc.speed || r.speed || '--',
-        cadence: r.cadence || calc.cadenceNumber || '',
-        strideLength: r.strideLength || calc.strideNumber || ''
-      };
-    });
   },
 
   save(){
@@ -510,7 +461,10 @@ const app = {
                   <div class="card-title">${plan.name}</div>
                   <div class="sub">${this.planSummary(plan)}</div>
                 </div>
-                <button class="mini-btn" onclick="app.duplicatePlan('${plan.id}')">Duplicar</button>
+                <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                  <button class="mini-btn" onclick="app.duplicatePlan('${plan.id}')">Duplicar</button>
+                  <button class="mini-btn danger-mini" onclick="app.deletePlan('${plan.id}')">Eliminar</button>
+                </div>
               </div>
               <div class="routine-tags" style="margin-top:12px">${plan.days.filter(d=>d.enabled).map(d => `<span class="tag">${d.day} · ${d.type === 'run' ? `${this.formatNumber(d.km)} km` : 'Fuerza'}</span>`).join('')}</div>
             </div>
@@ -545,14 +499,25 @@ const app = {
         <div class="kpi-card"><div class="kpi-label">Km acumulados</div><div class="kpi-value">${this.formatNumber(data.totalKm)} km</div></div>
         <div class="kpi-card"><div class="kpi-label">Adherencia media</div><div class="kpi-value">${data.avgAdherence}%</div></div>
       </section>
-      <section class="chart-card"><div class="chart-head"><div class="card-title">Peso</div><div class="sub">histórico</div></div>${data.weights.labels.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay registros de peso suficientes.</div>`}</section>
-      <section class="chart-card"><div class="chart-head"><div class="card-title">Km semanales</div><div class="sub">carga de entrenamiento</div></div>${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay kilómetros acumulados.</div>`}</section>
-      <section class="chart-card"><div class="chart-head"><div class="card-title">Ritmo promedio</div><div class="sub">min/km por sesión</div></div>${data.sessionPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay sesiones de carrera con tiempo y distancia.</div>`}</section>
-      ${data.eventHeartRate.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Frecuencia media por evento</div><div class="sub">ppm</div></div><div class="chart-box"><canvas id="chartHeartRate"></canvas></div></section>` : ''}
-      ${data.eventSteps.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Pasos promedio por evento</div><div class="sub">pasos</div></div><div class="chart-box"><canvas id="chartSteps"></canvas></div></section>` : ''}
-      ${data.eventStride.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Zancada por evento</div><div class="sub">cm</div></div><div class="chart-box"><canvas id="chartStride"></canvas></div></section>` : ''}
-      <section class="chart-card"><div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}</section>
-      <section class="chart-card"><div class="chart-head"><div><div class="card-title">Heatmap nutricional</div><div class="sub">últimos 365 días · año móvil</div></div></div><div class="heatmap-year-grid">${this.renderHeatmap(365)}</div><div class="heatmap-legend"><span>Menos</span><span class="heatmap-dot" style="background:#F2EFE7"></span><span class="heatmap-dot" style="background:#E1D5A3"></span><span class="heatmap-dot" style="background:#C8AE56"></span><span class="heatmap-dot" style="background:#9D7321"></span><span class="heatmap-dot" style="background:#37312B"></span><span>Más</span></div></section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Peso</div><div class="sub">histórico</div></div>
+        ${data.weights.labels.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay registros de peso suficientes.</div>`}
+      </section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Km semanales</div><div class="sub">carga de entrenamiento</div></div>
+        ${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay kilómetros acumulados.</div>`}
+      </section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Ritmo promedio</div><div class="sub">min/km por sesión</div></div>
+        ${data.sessionPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay sesiones de carrera con tiempo y distancia.</div>`}
+      </section>
+      <section class="chart-card">
+        <div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>
+        ${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}
+      </section>
+
+
+
       ${this.renderProgressSignals()}
     `;
   },
@@ -633,35 +598,6 @@ const app = {
       });
     }
 
-
-    const heartCanvas = document.getElementById('chartHeartRate');
-    if(heartCanvas && data.eventHeartRate.labels.length){
-      const axis = this.getNiceAxisBounds(data.eventHeartRate.values, { clampZero:true });
-      this.charts.heartRate = new Chart(heartCanvas, {
-        type:'line',
-        data:{ labels:data.eventHeartRate.labels, datasets:[{ data:data.eventHeartRate.values, borderColor:'#E66F5E', backgroundColor:'rgba(230,111,94,.12)', fill:true, pointBackgroundColor:'#E66F5E', pointRadius:4, tension:.35 }] },
-        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventHeartRate.fullDates, items), label:(ctx)=>`${ctx.parsed.y} bpm`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
-      });
-    }
-    const stepsCanvas = document.getElementById('chartSteps');
-    if(stepsCanvas && data.eventSteps.labels.length){
-      const axis = this.getNiceAxisBounds(data.eventSteps.values, { clampZero:true });
-      this.charts.steps = new Chart(stepsCanvas, {
-        type:'bar',
-        data:{ labels:data.eventSteps.labels, datasets:[{ data:data.eventSteps.values, backgroundColor:'#7ABDE0', borderRadius:12 }] },
-        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventSteps.fullDates, items), label:(ctx)=>`${Math.round(ctx.parsed.y)} pasos`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
-      });
-    }
-    const strideCanvas = document.getElementById('chartStride');
-    if(strideCanvas && data.eventStride.labels.length){
-      const axis = this.getNiceAxisBounds(data.eventStride.values, { clampZero:true });
-      this.charts.stride = new Chart(strideCanvas, {
-        type:'line',
-        data:{ labels:data.eventStride.labels, datasets:[{ data:data.eventStride.values, borderColor:'#6ECFBA', backgroundColor:'rgba(110,207,186,.12)', fill:true, pointBackgroundColor:'#1E3A52', pointRadius:4, tension:.35 }] },
-        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventStride.fullDates, items), label:(ctx)=>`${Math.round(ctx.parsed.y)} cm`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
-      });
-    }
-
     const adhCanvas = document.getElementById('chartAdherence');
     if(adhCanvas && data.adherence.labels.length){
       this.charts.adherence = new Chart(adhCanvas, {
@@ -669,7 +605,7 @@ const app = {
         data:{ labels:data.adherence.labels, datasets:[{ data:data.adherence.values, borderColor:'#4A7FA5', backgroundColor:'rgba(74,127,165,.12)', fill:true, pointBackgroundColor:'#4A7FA5', pointRadius:4, tension:.3 }] },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y}%` } } },
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> items[0]?.label || '', label:(ctx)=> `Adherencia: ${ctx.parsed.y}%` } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:0, max:100, ticks:{ ...common.scales.y.ticks, stepSize:20, callback:(v)=> `${v}%` } }
@@ -804,12 +740,31 @@ const app = {
   },
 
   medalCard(medal){
-    const assetConfig = this.getMedalAssetConfig(medal.medalAsset || '');
-    const frontSrc = assetConfig?.front || '';
-    const customFront = frontSrc ? `
-        <div class="medal-asset-coin clean-medal-face"><img src="${this.escapeAttr(frontSrc)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-coin').classList.add('asset-error')"></div>` : `
-        <div class="medal-coin"><div class="scene"></div><div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div><div class="medal-distance">${this.formatNumber(medal.distance)}K</div></div>`;
-    return `<article class="medal-card unlocked ${frontSrc ? 'has-asset clean-asset' : ''}" onclick="app.openMedalDetail('${medal.id}')"><div class="medal-top"><div class="medal-badge">✓</div></div>${customFront}<div class="medal-name">${this.escapeHtml(medal.title)}</div><div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div></article>`;
+    const customFront = medal.medalAsset ? `
+        <div class="medal-asset-coin">
+          <img src="${this.escapeAttr(medal.medalAsset)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-coin').classList.add('asset-error')">
+          <div class="medal-asset-shine"></div>
+          <div class="medal-distance asset-distance">${this.formatNumber(medal.distance)}K</div>
+        </div>
+      ` : `
+        <div class="medal-coin">
+          <div class="scene"></div>
+          <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
+          <div class="medal-distance">${this.formatNumber(medal.distance)}K</div>
+        </div>
+      `;
+
+    return `
+      <article class="medal-card unlocked ${medal.medalAsset ? 'has-asset' : ''}" onclick="app.openMedalDetail('${medal.id}')">
+        <div class="medal-top">
+          <div class="medal-ribbon"></div>
+          <div class="medal-badge">✓</div>
+        </div>
+        ${customFront}
+        <div class="medal-name">${this.escapeHtml(medal.title)}</div>
+        <div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div>
+      </article>
+    `;
   },
 
   buildMedalCollection(){
@@ -873,9 +828,7 @@ const app = {
         </div>
       </div>
     `;
-    this.showModal(html, () => {
-      this.bindMedalFlipGesture();
-    }, true);
+    this.showModal(html, null, true);
   },
 
   largeMedalMarkup(medal){
@@ -884,13 +837,31 @@ const app = {
     const paceText = r.pace || '--';
     const timeText = r.durationLabel || '--';
     const distanceText = r.distance ? `${this.formatNumber(r.distance)}K` : `${this.formatNumber(medal.distance)}K`;
-    const assetConfig = this.getMedalAssetConfig(r.medalAsset || medal.medalAsset || '');
-    const hasAssetSet = !!(assetConfig && assetConfig.front && assetConfig.back && assetConfig.side);
-    if(hasAssetSet){
-      return `<div class="medal-flip-stage clean-stage" id="medalFlipStage"><div class="medal-flip-inner" id="medalFlipInner"><div class="medal-face medal-front"><div class="medal-large clean-medal-large"><div class="medal-face-asset"><img src="${this.escapeAttr(assetConfig.front)}" alt="${this.escapeAttr(r.name || medal.title)} frente"></div></div></div><div class="medal-face medal-edge medal-edge-right"><div class="medal-edge-asset"><img src="${this.escapeAttr(assetConfig.side)}" alt="${this.escapeAttr(r.name || medal.title)} costado"></div></div><div class="medal-face medal-edge medal-edge-left"><div class="medal-edge-asset mirror"><img src="${this.escapeAttr(assetConfig.side)}" alt="${this.escapeAttr(r.name || medal.title)} costado"></div></div><div class="medal-face medal-back"><div class="medal-large clean-medal-large"><div class="medal-face-asset"><img src="${this.escapeAttr(assetConfig.back)}" alt="${this.escapeAttr(r.name || medal.title)} reverso"></div></div></div></div></div><div class="medal-gesture-hint">Desliza sobre la medalla para girarla</div>`;
-    }
-    const customFront = r.medalAsset ? `<div class="medal-large apple-medal-front custom-medal-front"><div class="medal-ribbon"></div><div class="medal-large-asset-shell"><img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" onerror="this.closest('.medal-large-asset-shell').classList.add('asset-error')"><div class="medal-large-metal-shine"></div><div class="medal-distance">${distanceText}</div></div></div>` : `<div class="medal-large apple-medal-front"><div class="medal-ribbon"></div><div class="medal-coin"><div class="scene"></div><div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div><div class="medal-distance">${distanceText}</div></div></div>`;
-    return `<div class="medal-flip-stage" id="medalFlipStage"><div class="medal-flip-inner" id="medalFlipInner"><div class="medal-face medal-front">${customFront}</div><div class="medal-face medal-edge medal-edge-right"><div class="medal-edge-disc"></div></div><div class="medal-face medal-edge medal-edge-left"><div class="medal-edge-disc"></div></div><div class="medal-face medal-back"><div class="medal-large apple-medal-back"><div class="medal-back-disc"><div class="medal-back-text">OBTENIDO<br>${this.escapeHtml(dateText)}</div><div class="medal-back-hole"></div><div class="medal-back-bottom"><div class="medal-back-pill">Ritmo <b>${this.escapeHtml(paceText)}</b></div><div class="medal-back-pill">Tiempo <b>${this.escapeHtml(timeText)}</b></div></div></div></div></div></div></div><div class="medal-gesture-hint">Desliza sobre la medalla para girarla</div>`;
+    const customFront = r.medalAsset ? `
+      <div class="medal-large apple-medal-front custom-medal-front">
+        <div class="medal-ribbon"></div>
+        <div class="medal-large-asset-shell">
+          <img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" onerror="this.closest('.medal-large-asset-shell').classList.add('asset-error')">
+          <div class="medal-large-metal-shine"></div>
+          <div class="medal-distance">${distanceText}</div>
+        </div>
+      </div>
+    ` : `
+      <div class="medal-large apple-medal-front">
+        <div class="medal-ribbon"></div>
+        <div class="medal-coin">
+          <div class="scene"></div>
+          <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
+          <div class="medal-distance">${distanceText}</div>
+        </div>
+      </div>
+    `;
+
+    return `
+      <div class="medal-static-display">
+        ${customFront}
+      </div>
+    `;
   },
 
   bindMedalFlipGesture(){
@@ -1607,11 +1578,9 @@ const app = {
 
 
   medalAssetOptions(selected=''){
-    const assetConfig = this.getMedalAssetConfig(selected || '');
-    const normalized = assetConfig ? assetConfig.value : selected;
-    const known = this.medalAssetCatalog.some(asset => asset.value === normalized);
-    const options = this.medalAssetCatalog.map(asset => `<option value="${this.escapeAttr(asset.value)}" ${asset.value === normalized ? 'selected' : ''}>${this.escapeHtml(asset.label)}</option>`);
-    if(normalized && !known) options.push(`<option value="${this.escapeAttr(normalized)}" selected>Asset actual · ${this.escapeHtml(normalized)}</option>`);
+    const known = this.medalAssetCatalog.some(asset => asset.value === selected);
+    const options = this.medalAssetCatalog.map(asset => `<option value="${this.escapeAttr(asset.value)}" ${asset.value === selected ? 'selected' : ''}>${this.escapeHtml(asset.label)}</option>`);
+    if(selected && !known) options.push(`<option value="${this.escapeAttr(selected)}" selected>Asset actual · ${this.escapeHtml(selected)}</option>`);
     return options.join('');
   },
 
@@ -1746,6 +1715,16 @@ const app = {
     const p = this.db.plans.find(x=>x.id===id); if(!p) return;
     this.db.plans.push({ ...JSON.parse(JSON.stringify(p)), id:`plan_${Date.now()}`, name:`${p.name} copia`, createdAt:new Date().toISOString() });
     this.renderAll();
+  },
+
+  deletePlan(id){
+    const p = this.db.plans.find(x=>x.id===id); if(!p) return;
+    const isActive = this.getActivePlan()?.id === id;
+    const label = isActive ? `"${p.name}" es el plan activo. ¿Eliminarlo de todas formas?` : `¿Eliminar el plan "${p.name}"? Esta acción no se puede deshacer.`;
+    if(!confirm(label)) return;
+    this.db.plans = this.db.plans.filter(x=>x.id!==id);
+    this.renderAll();
+    this.showToast('Plan eliminado.');
   },
 
 
@@ -1954,23 +1933,8 @@ const app = {
       weights:{ labels: filteredWeights.map(w => this.shortChartDate(w.date)), fullDates: filteredWeights.map(w => w.date), values: filteredWeights.map(w => Number(w.value)) },
       weeklyKm:this.weeklyKmSeries(filteredSessions),
       sessionPace:this.sessionPaceSeries(filteredSessions),
-      eventHeartRate:this.eventHeartRateSeries(filteredSessions),
-      eventSteps:this.eventStepsSeries(filteredSessions),
-      eventStride:this.eventStrideSeries(filteredSessions),
       adherence
     };
-  },
-  eventHeartRateSeries(sessions){
-    const runs = sessions.filter(s=>s.type==='run' && Number(s.fc || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.fc)) };
-  },
-  eventStepsSeries(sessions){
-    const runs = sessions.filter(s=>s.type==='run' && Number(s.steps || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.steps)) };
-  },
-  eventStrideSeries(sessions){
-    const runs = sessions.map(s=>this.sessionMetricsView(s)).filter(s=>s.type==='run' && Number(s.strideLength || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.strideLength)) };
   },
   weeklyKmSeries(sessions){
     const map = {};
@@ -2045,7 +2009,6 @@ const app = {
         if(remote){
           this.cloudApplyingRemote = true;
           this.db = this.mergeCloudData(this.db, remote);
-          this.normalizeDatabase();
           localStorage.setItem(this.storageKey, JSON.stringify(this.db));
           this.cloudApplyingRemote = false;
           this.renderAll(true);
@@ -2100,7 +2063,6 @@ const app = {
       if(remote){
         this.cloudApplyingRemote = true;
         this.db = this.mergeCloudData(this.db, remote);
-        this.normalizeDatabase();
         localStorage.setItem(this.storageKey, JSON.stringify(this.db));
         this.cloudApplyingRemote = false;
         this.cloudStatus = 'synced';
@@ -2339,11 +2301,7 @@ const app = {
     if(longPending){
       signals.risk.push({ icon:'🏃', title:'Tirada larga pendiente', text:`Queda pendiente ${longPending.day} · ${this.formatNumber(longPending.km)} km.`, priority:3 });
     }
-    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutAlcohol} días sin alcohol`, text:'Buena señal para recuperación, sueño y peso.', priority:4 });
-    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutOffPlan} día${habits.daysWithoutOffPlan === 1 ? '' : 's'} adherido${habits.daysWithoutOffPlan === 1 ? '' : 's'} a la pauta`, text:'Consistencia nutricional limpia.', priority:5 });
-    if(habits.cleanWeeks > 0){
-      signals.streaks.push({ icon:'🌿', title:`${habits.cleanWeeks} semanas limpias`, text:'Sin alcohol ni comidas fuera de plan.', priority:6 });
-    }
+    // Señales nutricionales ocultas
     const bestWeek = this.currentWeekIsBest();
     if(bestWeek.isBest && bestWeek.currentKm > 0){
       signals.achievements.push({ icon:'🏅', title:'Nuevo mejor volumen semanal', text:`Esta semana llevas ${this.formatNumber(bestWeek.currentKm)} km.`, priority:7 });
@@ -2599,7 +2557,7 @@ const app = {
     if(km > 0 && timeSeconds > 0){
       const paceSec = timeSeconds / km;
       pace = this.formatPaceSeconds(paceSec);
-      paceValue = paceSec / 60;
+      paceValue = Number((paceSec / 60).toFixed(2));
       speed = Number(((km / timeSeconds) * 3600).toFixed(2));
     }
     if(steps > 0 && timeSeconds > 0){
