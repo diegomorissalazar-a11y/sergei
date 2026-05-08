@@ -2073,12 +2073,15 @@ const app = {
     };
   },
   sessionStrideSeries(sessions){
-    const runs = sessions.filter(s => s.type === 'run' && Number(s.strideLength) > 0)
-      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+    const runs = sessions
+      .filter(s => s.type === 'run' && Number(s.km) > 0 && Number(s.steps) > 0)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date))
+      .map(s => ({ ...s, _stride: Math.round((Number(s.km) * 100000) / Number(s.steps)) }))
+      .filter(s => s._stride > 0);
     return {
       labels: runs.map(s => this.shortChartDate(s.date)),
       fullDates: runs.map(s => s.date),
-      values: runs.map(s => Number(s.strideLength))
+      values: runs.map(s => s._stride)
     };
   },
   weeklyAdherenceSeries(sessions){
