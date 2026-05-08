@@ -901,100 +901,71 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
   font-size:12px;
   line-height:1.35;
 }
+/* medal asset photo – imagen libre sin contenedor con forma ──── */
 .medal-card.has-asset .medal-ribbon{
   background:linear-gradient(180deg,#1B3A52,#122838);
 }
-.medal-asset-coin{
+/* tarjeta pequeña del grid */
+.medal-asset-photo{
   width:100%;
   max-width:178px;
-  aspect-ratio:1;
   margin:2px auto 10px;
-  position:relative;
-  border-radius:50%;
-  overflow:hidden;
-  background:
-    radial-gradient(circle at 30% 22%,rgba(255,255,255,.38),rgba(255,255,255,0) 26%),
-    linear-gradient(145deg,#F8FBFC,#D6DEE4 18%,#8A969F 48%,#EAF0F3 70%,#6F7B84 100%);
-  border:4px solid #87909A;
-  box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,.55),
-    inset 0 -16px 24px rgba(0,0,0,.22),
-    0 8px 18px rgba(27,58,82,.20);
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-.medal-asset-coin img{
+.medal-asset-photo img{
   width:100%;
-  height:100%;
-  object-fit:cover;
-  filter:saturate(.94) contrast(1.04);
+  height:auto;
+  object-fit:contain;
+  display:block;
+  filter:drop-shadow(0 4px 12px rgba(27,58,82,.18));
 }
-.medal-asset-coin::after{
-  content:'';
-  position:absolute;
-  inset:8px;
-  border-radius:50%;
-  border:1px solid rgba(255,255,255,.35);
-  box-shadow:inset 0 0 24px rgba(0,0,0,.18);
-  pointer-events:none;
-}
-.medal-asset-shine,
-.medal-large-metal-shine{
-  position:absolute;
-  inset:-20%;
-  background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.34) 42%,rgba(255,255,255,.08) 52%,transparent 70%);
-  mix-blend-mode:screen;
-  opacity:.75;
-  pointer-events:none;
-}
-.asset-distance{
-  bottom:8px;
-  z-index:5;
-}
-.medal-asset-coin.asset-error::before,
-.medal-large-asset-shell.asset-error::before{
-  content:'Asset no encontrado';
-  position:absolute;
-  inset:0;
+.medal-asset-photo.asset-error::after{
+  content:'Imagen no encontrada';
+  display:block;
+  width:100%;
+  aspect-ratio:1;
   display:flex;
   align-items:center;
   justify-content:center;
   text-align:center;
-  padding:14px;
-  color:#1B3A52;
-  background:#F3F8FA;
-  z-index:7;
-  font-size:12px;
-  font-weight:900;
+  font-size:11px;
+  font-weight:700;
+  color:#8A9BB0;
+  background:rgba(138,155,176,.08);
+  border-radius:12px;
+  padding:12px;
 }
-.medal-large-asset-shell{
-  width:260px;
-  height:306px;
-  border-radius:130px 130px 42px 42px;
-  margin-top:-6px;
-  position:relative;
-  overflow:hidden;
-  background:
-    radial-gradient(circle at 30% 20%,rgba(255,255,255,.38),transparent 24%),
-    linear-gradient(145deg,#F6FAFC 0%,#A6B4BE 22%,#6B7882 43%,#DCE6EB 62%,#74828C 82%,#E7EDF1 100%);
-  border:6px solid #84909A;
-  box-shadow:
-    inset 0 0 0 3px rgba(255,255,255,.30),
-    inset 0 -18px 28px rgba(0,0,0,.26),
-    0 18px 36px rgba(0,0,0,.36);
-}
-.medal-large-asset-shell img{
+/* modal grande */
+.medal-large-photo-wrap{
   width:100%;
-  height:100%;
-  object-fit:cover;
-  filter:saturate(.95) contrast(1.04);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 8px;
 }
-.medal-large-asset-shell::after{
-  content:'';
-  position:absolute;
-  inset:14px;
-  border-radius:112px 112px 28px 28px;
-  border:1px solid rgba(255,255,255,.28);
-  box-shadow:inset 0 0 28px rgba(0,0,0,.16);
-  pointer-events:none;
+.medal-large-photo{
+  width:100%;
+  max-width:320px;
+  height:auto;
+  object-fit:contain;
+  display:block;
+  filter:drop-shadow(0 8px 24px rgba(27,58,82,.22));
+}
+.medal-large-photo-wrap.asset-error::after{
+  content:'Imagen no encontrada';
+  display:flex;
+  width:260px;
+  height:260px;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  color:#8A9BB0;
+  background:rgba(138,155,176,.08);
+  border-radius:20px;
 }
 
 /* v0.7.5 - historial expandido y planes contraídos */
@@ -1029,17 +1000,10 @@ input:focus,select:focus,textarea:focus{border-color:#9EC8E4;box-shadow:0 0 0 3p
   padding:8px 0 12px;
   width:100%;
 }
-.medal-static-display .medal-large,
-.medal-static-display .medal-large-asset-shell{
+.medal-static-display .medal-large{
   width:calc(100% - 40px);
   max-width:320px;
   height:auto;
-  aspect-ratio:1/1.15;
-}
-.medal-static-display .medal-large-asset-shell img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
 }
 /* Eliminar plan – botón destructivo pequeño */
 .mini-btn.danger-mini{

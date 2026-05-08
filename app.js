@@ -798,10 +798,8 @@ const app = {
 
   medalCard(medal){
     const customFront = medal.medalAsset ? `
-        <div class="medal-asset-coin">
-          <img src="${this.escapeAttr(medal.medalAsset)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-coin').classList.add('asset-error')">
-          <div class="medal-asset-shine"></div>
-          <div class="medal-distance asset-distance">${this.formatNumber(medal.distance)}K</div>
+        <div class="medal-asset-photo">
+          <img src="${this.escapeAttr(medal.medalAsset)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-photo').classList.add('asset-error')">
         </div>
       ` : `
         <div class="medal-coin">
@@ -895,13 +893,8 @@ const app = {
     const timeText = r.durationLabel || '--';
     const distanceText = r.distance ? `${this.formatNumber(r.distance)}K` : `${this.formatNumber(medal.distance)}K`;
     const customFront = r.medalAsset ? `
-      <div class="medal-large apple-medal-front custom-medal-front">
-        <div class="medal-ribbon"></div>
-        <div class="medal-large-asset-shell">
-          <img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" onerror="this.closest('.medal-large-asset-shell').classList.add('asset-error')">
-          <div class="medal-large-metal-shine"></div>
-          <div class="medal-distance">${distanceText}</div>
-        </div>
+      <div class="medal-large-photo-wrap">
+        <img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" class="medal-large-photo" onerror="this.closest('.medal-large-photo-wrap').classList.add('asset-error')">
       </div>
     ` : `
       <div class="medal-large apple-medal-front">
