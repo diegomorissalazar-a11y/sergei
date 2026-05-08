@@ -421,6 +421,8 @@ const app = {
               <div class="routine-sub">Objetivo: ${day.type === 'run' ? `${this.formatNumber(day.km)} km` : 'Sesión de fuerza'} · ${plan.name}</div>
               <div class="routine-tags">
                 <span class="tag blue-tag">${day.type === 'run' ? `Carrera / ${this.formatNumber(day.km)} km` : 'Fuerza / libre'}</span>
+                ${day.fcTarget ? `<span class="tag">FC ${day.fcTarget} bpm</span>` : ''}
+                ${day.paceTarget ? `<span class="tag">Ritmo ${day.paceTarget} min/km</span>` : ''}
                 <span class="tag plan">${plan.name.toUpperCase()}</span>
                 <span class="tag">${day.day.toUpperCase()}</span>
               </div>
@@ -461,12 +463,13 @@ const app = {
                   <div class="card-title">${plan.name}</div>
                   <div class="sub">${this.planSummary(plan)}</div>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                  <button class="mini-btn" onclick="app.editPlan('${plan.id}')">Editar</button>
                   <button class="mini-btn" onclick="app.duplicatePlan('${plan.id}')">Duplicar</button>
                   <button class="mini-btn danger-mini" onclick="app.deletePlan('${plan.id}')">Eliminar</button>
                 </div>
               </div>
-              <div class="routine-tags" style="margin-top:12px">${plan.days.filter(d=>d.enabled).map(d => `<span class="tag">${d.day} · ${d.type === 'run' ? `${this.formatNumber(d.km)} km` : 'Fuerza'}</span>`).join('')}</div>
+              <div class="routine-tags" style="margin-top:12px">${plan.days.filter(d=>d.enabled).map(d => `<span class="tag">${d.day} · ${d.type === 'run' ? `${this.formatNumber(d.km)} km` : 'Fuerza'}${d.fcTarget ? ` · FC ${d.fcTarget}` : ''}${d.paceTarget ? ` · ${d.paceTarget}` : ''}</span>`).join('')}</div>
             </div>
           `).join('') : `<div class="empty">Aún no has creado planes.</div>`}
         </div>
@@ -1673,23 +1676,53 @@ const app = {
 
   openPlanModal(){
     const id = `plan_${Date.now()}`;
-    const rows = this.dayNames.map(day => `
-      <div class="plan-day">
-        <button class="check" data-day="${day}" onclick="app.togglePlanCheck(this)">✓</button>
-        <div>
-          <div style="font-weight:800;color:var(--navy)">${day}</div>
-          <div class="sub">Entrenamiento de carrera o fuerza</div>
+    this._renderPlanModal({ id, name:`Plan semana ${this.db.plans.length + 1}`, days:[], isNew:true });
+  },
+
+  editPlan(id){
+    const p = this.db.plans.find(x=>x.id===id); if(!p) return;
+    this._renderPlanModal({ ...JSON.parse(JSON.stringify(p)), isNew:false });
+  },
+
+  _renderPlanModal({ id, name, days, isNew }){
+    const existingDay = (day) => days.find(d=>d.day===day) || {};
+    const rows = this.dayNames.map(day => {
+      const d = existingDay(day);
+      const on = d.enabled ? 'on' : '';
+      const km = d.km || '';
+      const fc = d.fcTarget || '';
+      const pace = d.paceTarget || '';
+      const dis = d.enabled ? '' : 'disabled';
+      return `
+        <div class="plan-day-row">
+          <div class="plan-day-header">
+            <button class="check ${on}" data-day="${day}" onclick="app.togglePlanCheck(this)">✓</button>
+            <span class="plan-day-name">${day}</span>
+          </div>
+          <div class="plan-day-fields" id="fields-${day}" style="${d.enabled ? '' : 'display:none'}">
+            <label class="plan-field-label">
+              <span>Km objetivo</span>
+              <input type="number" step="0.1" min="0" placeholder="km" data-km="${day}" value="${km}" ${dis}>
+            </label>
+            <label class="plan-field-label">
+              <span>FC objetivo <small>(opcional)</small></span>
+              <input type="number" step="1" min="100" max="220" placeholder="ej. 155" data-fc="${day}" value="${fc}" ${dis}>
+            </label>
+            <label class="plan-field-label">
+              <span>Ritmo objetivo <small>(opcional)</small></span>
+              <input type="text" placeholder="ej. 5:30" data-pace="${day}" value="${pace}" ${dis}>
+            </label>
+          </div>
         </div>
-        <input type="number" step="0.1" placeholder="km" data-km="${day}" disabled>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     this.showModal(`
-      <div class="modal-box">
-        <div class="modal-title">Crear plan semanal</div>
-        <div class="modal-subtitle">Agrega días de entrenamiento y luego define kilómetros objetivo. Si el día es de fuerza, deja km vacío.</div>
-        <input id="planName" value="Plan semana ${this.db.plans.length + 1}" placeholder="Nombre del plan">
-        <div class="plan-list">${rows}</div>
-        <button class="btn" onclick="app.savePlanModal('${id}')">Guardar plan</button>
+      <div class="modal-box plan-modal-box">
+        <div class="modal-title">${isNew ? 'Crear plan semanal' : 'Editar plan'}</div>
+        <div class="modal-subtitle">Activa los días de entrenamiento. FC y ritmo son opcionales.</div>
+        <input id="planName" value="${this.escapeAttr(name)}" placeholder="Nombre del plan">
+        <div class="plan-days-list">${rows}</div>
+        <button class="btn" onclick="app.savePlanModal('${id}', ${isNew})">Guardar plan</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
@@ -1697,19 +1730,31 @@ const app = {
   togglePlanCheck(btn){
     btn.classList.toggle('on');
     const day = btn.dataset.day;
-    const input = document.querySelector(`[data-km="${day}"]`);
-    input.disabled = !btn.classList.contains('on');
+    const on = btn.classList.contains('on');
+    const fields = document.getElementById(`fields-${day}`);
+    if(fields) fields.style.display = on ? '' : 'none';
+    document.querySelectorAll(`[data-km="${day}"],[data-fc="${day}"],[data-pace="${day}"]`).forEach(el => el.disabled = !on);
   },
-  savePlanModal(id){
+  savePlanModal(id, isNew = true){
     const name = document.getElementById('planName').value.trim() || `Plan semana ${this.db.plans.length + 1}`;
     const days = this.dayNames.map(day => {
       const enabled = document.querySelector(`.check[data-day="${day}"]`).classList.contains('on');
-      const km = Number(document.querySelector(`[data-km="${day}"]`).value || 0);
-      return { day, enabled, type: km > 0 ? 'run' : 'strength', km: enabled ? km : 0 };
+      const km = Number(document.querySelector(`[data-km="${day}"]`)?.value || 0);
+      const fcRaw = document.querySelector(`[data-fc="${day}"]`)?.value?.trim();
+      const paceRaw = document.querySelector(`[data-pace="${day}"]`)?.value?.trim();
+      const fcTarget = fcRaw ? Number(fcRaw) : null;
+      const paceTarget = paceRaw || null;
+      return { day, enabled, type: km > 0 ? 'run' : 'strength', km: enabled ? km : 0, ...(fcTarget ? { fcTarget } : {}), ...(paceTarget ? { paceTarget } : {}) };
     });
-    this.db.plans.push({ id, name, createdAt:new Date().toISOString(), days });
+    if(isNew){
+      this.db.plans.push({ id, name, createdAt:new Date().toISOString(), days });
+    } else {
+      const idx = this.db.plans.findIndex(x=>x.id===id);
+      if(idx >= 0) this.db.plans[idx] = { ...this.db.plans[idx], name, days };
+    }
     this.closeModal();
     this.renderAll();
+    this.showToast(isNew ? 'Plan creado.' : 'Plan actualizado.');
   },
   duplicatePlan(id){
     const p = this.db.plans.find(x=>x.id===id); if(!p) return;
