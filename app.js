@@ -47,10 +47,10 @@ const app = {
     { id:'reto-cumbre-21k', title:'Reto Cumbre', distance:21, theme:'cumbre' }
   ],
   medalAssetCatalog: [
-    { label:'Medalla metálica estándar', value:'' },
-    { label:'Mes del Mar 21K 2026', value:'assets/medals/mes-del-mar-21k-2026.webp' },
+    { label:'Maratón de Santiago 21K 2025', value:'assets/medals/maraton-santiago-21k-2026.webp' },
     { label:'Maratón de Santiago 21K 2026', value:'assets/medals/maraton-santiago-21k-2026.webp' },
-    { label:'Gana Santiago 2026', value:'assets/medals/gana-santiago-2026.webp' }
+    { label:'Mes del Mar 21K 2026',         value:'assets/medals/mes-del-mar-21k-2026.webp' },
+    { label:'Gana Santiago 2026',           value:'assets/medals/gana-santiago-2026.webp' }
   ],
 
   init(){
@@ -1634,6 +1634,46 @@ const app = {
     return options.join('');
   },
 
+  medalPickerHTML(selected=''){
+    const items = this.medalAssetCatalog.map(asset => `
+      <div class="medal-picker-item ${asset.value === selected ? 'selected' : ''}"
+           onclick="app.selectMedalAsset('${this.escapeAttr(asset.value)}', this)"
+           title="${this.escapeAttr(asset.label)}">
+        <div class="medal-picker-thumb">
+          <img src="${this.escapeAttr(asset.value)}" alt="${this.escapeAttr(asset.label)}"
+               onerror="this.closest('.medal-picker-thumb').classList.add('thumb-error')">
+        </div>
+        <div class="medal-picker-name">${this.escapeHtml(asset.label)}</div>
+      </div>
+    `).join('');
+    const noneSelected = !selected || !this.medalAssetCatalog.some(a=>a.value===selected);
+    return `
+      <div class="medal-picker-item ${noneSelected ? 'selected' : ''}"
+           onclick="app.selectMedalAsset('', this)" title="Sin imagen">
+        <div class="medal-picker-thumb medal-picker-none">
+          <span>Sin imagen</span>
+        </div>
+        <div class="medal-picker-name">Ninguna</div>
+      </div>
+      ${items}
+    `;
+  },
+
+  selectMedalAsset(value, el){
+    document.getElementById('editMedalAsset').value = value;
+    document.getElementById('editMedalAssetUrl').value = '';
+    document.querySelectorAll('.medal-picker-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+  },
+
+  applyMedalAssetUrl(){
+    const url = document.getElementById('editMedalAssetUrl').value.trim();
+    if(!url) return;
+    document.getElementById('editMedalAsset').value = url;
+    document.querySelectorAll('.medal-picker-item').forEach(i => i.classList.remove('selected'));
+    this.showToast('URL aplicada. Guarda para confirmar.');
+  },
+
   openMedalEditModal(id){
     const r = this.db.completedRaces.find(x=>x.id===id);
     if(!r) return;
@@ -1649,7 +1689,17 @@ const app = {
         <input id="editMedalDate" type="date" value="${this.escapeAttr(r.date || this.todayISO())}">
         <input id="editMedalDistance" type="number" step="0.01" value="${this.escapeAttr(r.distance || '')}" placeholder="Distancia km">
         <label class="modal-field-label">Medalla</label>
-        <select id="editMedalAsset">${this.medalAssetOptions(r.medalAsset || '')}</select>
+        <div class="medal-picker" id="medalPicker">
+          ${this.medalPickerHTML(r.medalAsset || '')}
+        </div>
+        <div class="medal-picker-custom">
+          <span class="modal-field-label" style="margin-bottom:4px;display:block">O pega una URL de imagen</span>
+          <div style="display:flex;gap:8px">
+            <input id="editMedalAssetUrl" type="url" placeholder="https://…/medalla.webp" value="${this.escapeAttr(!this.medalAssetCatalog.some(a=>a.value===r.medalAsset) && r.medalAsset ? r.medalAsset : '')}">
+            <button class="mini-btn" onclick="app.applyMedalAssetUrl()">Usar</button>
+          </div>
+        </div>
+        <input type="hidden" id="editMedalAsset" value="${this.escapeAttr(r.medalAsset || '')}">
         <div class="time-picker-label">Tiempo</div>
         <div class="time-picker">
           <div id="editMedalHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
