@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=077" />
+  <link rel="stylesheet" href="styles.css?v=079" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -42,13 +42,16 @@
       <svg viewBox="0 0 24 24" class="icon"><path d="M3 17c4-5 7-2 11-7 3-4 5-3 7-5"></path><circle cx="21" cy="5" r="1.8"></circle></svg>
       <span>Progreso</span>
     </button>
-    <!-- Tab nutrición oculto temporalmente -->
+    <button class="tab" onclick="app.go('nutricion', this)" aria-label="Nutrición">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M12 21s7-4.5 7-11a7 7 0 0 0-14 0c0 6.5 7 11 7 11z"></path><path d="M9 10c2 0 4-1.5 4-4"></path><path d="M12 14c1.7-2.8 3.6-4.1 6-4.5"></path></svg>
+      <span>Nutrición</span>
+    </button>
     <button class="tab" onclick="app.go('medallas', this)" aria-label="Medallas">
       <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="8" r="5"></circle><path d="M9 13l-2 8 5-3 5 3-2-8"></path><path d="M9.5 8.2l1.6 1.6 3.4-3.8"></path></svg>
       <span>Medallas</span>
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=077"></script>
+  <script type="module" src="app.js?v=079"></script>
 </body>
 </html>

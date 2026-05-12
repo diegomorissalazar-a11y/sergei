@@ -47,14 +47,15 @@ const app = {
     { id:'reto-cumbre-21k', title:'Reto Cumbre', distance:21, theme:'cumbre' }
   ],
   medalAssetCatalog: [
-    { label:'Maratón de Santiago 21K 2025', value:'assets/medals/maraton-santiago-21k-2026.webp' },
-    { label:'Maratón de Santiago 21K 2026', value:'assets/medals/maraton-santiago-21k-2026.webp' },
-    { label:'Mes del Mar 21K 2026',         value:'assets/medals/mes-del-mar-21k-2026.webp' },
-    { label:'Gana Santiago 2026',           value:'assets/medals/gana-santiago-2026.webp' }
+    { label:'Medalla metálica estándar', value:'', front:'', back:'', side:'' },
+    { label:'Mes del Mar 21K · limpio', value:'mes-del-mar-21k-clean', front:'assets/medals/mes-del-mar-21k-front.jpg', back:'assets/medals/mes-del-mar-21k-back.jpg', side:'assets/medals/mes-del-mar-21k-side.jpg' },
+    { label:'Maratón de Santiago 21K · limpio', value:'maraton-santiago-21k-clean', front:'assets/medals/maraton-santiago-21k-front.jpg', back:'assets/medals/maraton-santiago-21k-back.jpg', side:'assets/medals/maraton-santiago-21k-side.jpg' },
+    { label:'Gana Santiago · limpio', value:'gana-santiago-clean', front:'assets/medals/gana-santiago-front.jpg', back:'assets/medals/gana-santiago-back.jpg', side:'assets/medals/gana-santiago-side.jpg' }
   ],
 
   init(){
     this.db = this.load();
+    this.normalizeDatabase();
     if(!this.db.startWeight && this.db.weights.length){
       this.db.startWeight = this.db.weights[0].value;
     }
@@ -110,7 +111,7 @@ const app = {
         pauta:'Menú sugerido de descanso: D: Yogur + pan + 3 huevos · A: 320g corvina + brócoli + champiñones · C: 2 tortillas + pollo + rúcula + palta'
       },
       nutritionLogs:{},
-      version:'0.7.6'
+      version:'0.7.8'
     };
   },
 
@@ -123,6 +124,54 @@ const app = {
       }
     }catch(e){ console.error(e); }
     return this.defaultDB();
+  },
+
+  getMedalAssetConfig(value=''){
+    if(!value) return null;
+    const direct = this.medalAssetCatalog.find(asset => asset.value === value);
+    if(direct) return direct;
+    const legacyMap = {
+      'assets/medals/mes-del-mar-21k-2026.webp':'mes-del-mar-21k-clean',
+      'assets/medals/mes-del-mar-21k-2026.png':'mes-del-mar-21k-clean',
+      'assets/medals/maraton-santiago-21k-2026.webp':'maraton-santiago-21k-clean',
+      'assets/medals/maraton-santiago-21k-2026.png':'maraton-santiago-21k-clean',
+      'assets/medals/gana-santiago-2026.webp':'gana-santiago-clean',
+      'assets/medals/gana-santiago-2026.png':'gana-santiago-clean'
+    };
+    const normalized = legacyMap[value] || value;
+    return this.medalAssetCatalog.find(asset => asset.value === normalized) || null;
+  },
+
+  normalizeDatabase(){
+    if(!this.db) return;
+    this.db.version = '0.7.8';
+    this.db.sessions = (this.db.sessions || []).map(session => {
+      if(session?.type !== 'run') return session;
+      const calc = this.computeRunMetrics(Number(session.km || 0), Number(session.timeSeconds || 0), Number(session.steps || 0));
+      return {
+        ...session,
+        durationLabel: Number(session.timeSeconds || 0) > 0 ? this.formatDuration(Number(session.timeSeconds || 0)) : (session.durationLabel || '--'),
+        pace: calc.pace || session.pace || '--',
+        paceValue: calc.paceValue ?? session.paceValue ?? null,
+        speed: calc.speed || session.speed || '--',
+        cadence: session.cadence || calc.cadenceNumber || '',
+        strideLength: session.strideLength || calc.strideNumber || ''
+      };
+    });
+    this.db.completedRaces = (this.db.completedRaces || []).map(r => {
+      const calc = this.computeRunMetrics(Number(r.distance || 0), Number(r.timeSeconds || 0), Number(r.steps || 0));
+      const assetConfig = this.getMedalAssetConfig(r.medalAsset || '');
+      return {
+        ...r,
+        medalAsset: assetConfig ? assetConfig.value : (r.medalAsset || ''),
+        durationLabel: Number(r.timeSeconds || 0) > 0 ? this.formatDuration(Number(r.timeSeconds || 0)) : (r.durationLabel || '--'),
+        pace: calc.pace || r.pace || '--',
+        paceValue: calc.paceValue ?? r.paceValue ?? null,
+        speed: calc.speed || r.speed || '--',
+        cadence: r.cadence || calc.cadenceNumber || '',
+        strideLength: r.strideLength || calc.strideNumber || ''
+      };
+    });
   },
 
   save(){
@@ -300,11 +349,10 @@ const app = {
           </div>
           <div class="workout-metrics">
             <div><small>Tiempo</small><b>${view.durationLabel || '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatThousands(session.km, true)} km` : '--'}</b></div>
+            <div><small>${session.type === 'run' ? 'Distancia' : 'Volumen'}</small><b>${session.km ? `${this.formatDistance(session.km)} km` : '--'}</b></div>
             <div><small>${session.type === 'run' ? 'Ritmo' : 'Series'}</small><b>${session.type === 'run' ? (view.pace || '--') : (session.series || '--')}</b></div>
             <div><small>FC media</small><b>${session.fc || '--'}</b></div>
-            <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps ? this.formatThousands(session.steps) : '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
-            ${session.type === 'run' ? `<div><small>Zancada</small><b>${view.strideLength ? `${this.formatThousands(view.strideLength)} cm` : '--'}</b></div>` : ''}
+            <div><small>${session.type === 'run' ? 'Pasos' : 'Calorías'}</small><b>${session.type === 'run' ? (session.steps || '--') : (session.kcal ? `${session.kcal} kcal` : '--')}</b></div>
           </div>
           <div class="workout-summary">${summary}</div>
         </div>
@@ -422,8 +470,6 @@ const app = {
               <div class="routine-sub">Objetivo: ${day.type === 'run' ? `${this.formatNumber(day.km)} km` : 'Sesión de fuerza'} · ${plan.name}</div>
               <div class="routine-tags">
                 <span class="tag blue-tag">${day.type === 'run' ? `Carrera / ${this.formatNumber(day.km)} km` : 'Fuerza / libre'}</span>
-                ${day.fcTarget ? `<span class="tag">FC ${day.fcTarget} bpm</span>` : ''}
-                ${day.paceTarget ? `<span class="tag">Ritmo ${day.paceTarget} min/km</span>` : ''}
                 <span class="tag plan">${plan.name.toUpperCase()}</span>
                 <span class="tag">${day.day.toUpperCase()}</span>
               </div>
@@ -464,13 +510,9 @@ const app = {
                   <div class="card-title">${plan.name}</div>
                   <div class="sub">${this.planSummary(plan)}</div>
                 </div>
-                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-                  <button class="mini-btn" onclick="app.editPlan('${plan.id}')">Editar</button>
-                  <button class="mini-btn" onclick="app.duplicatePlan('${plan.id}')">Duplicar</button>
-                  <button class="mini-btn danger-mini" onclick="app.deletePlan('${plan.id}')">Eliminar</button>
-                </div>
+                <button class="mini-btn" onclick="app.duplicatePlan('${plan.id}')">Duplicar</button>
               </div>
-              <div class="routine-tags" style="margin-top:12px">${plan.days.filter(d=>d.enabled).map(d => `<span class="tag">${d.day} · ${d.type === 'run' ? `${this.formatNumber(d.km)} km` : 'Fuerza'}${d.fcTarget ? ` · FC ${d.fcTarget}` : ''}${d.paceTarget ? ` · ${d.paceTarget}` : ''}</span>`).join('')}</div>
+              <div class="routine-tags" style="margin-top:12px">${plan.days.filter(d=>d.enabled).map(d => `<span class="tag">${d.day} · ${d.type === 'run' ? `${this.formatNumber(d.km)} km` : 'Fuerza'}</span>`).join('')}</div>
             </div>
           `).join('') : `<div class="empty">Aún no has creado planes.</div>`}
         </div>
@@ -503,35 +545,14 @@ const app = {
         <div class="kpi-card"><div class="kpi-label">Km acumulados</div><div class="kpi-value">${this.formatNumber(data.totalKm)} km</div></div>
         <div class="kpi-card"><div class="kpi-label">Adherencia media</div><div class="kpi-value">${data.avgAdherence}%</div></div>
       </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Peso</div><div class="sub">histórico</div></div>
-        ${data.weights.labels.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay registros de peso suficientes.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Km semanales</div><div class="sub">carga de entrenamiento</div></div>
-        ${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay kilómetros acumulados.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Ritmo promedio</div><div class="sub">min/km por sesión</div></div>
-        ${data.sessionPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay sesiones de carrera con tiempo y distancia.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>
-        ${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">FC media</div><div class="sub">frecuencia cardíaca por sesión</div></div>
-        ${data.sessionFC.labels.length ? `<div class="chart-box"><canvas id="chartFC"></canvas></div>` : `<div class="chart-empty">Registra FC en tus sesiones para ver este gráfico.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Pasos promedio</div><div class="sub">por sesión de carrera</div></div>
-        ${data.sessionSteps.labels.length ? `<div class="chart-box"><canvas id="chartSteps"></canvas></div>` : `<div class="chart-empty">Registra pasos en tus sesiones para ver este gráfico.</div>`}
-      </section>
-      <section class="chart-card">
-        <div class="chart-head"><div class="card-title">Zancada</div><div class="sub">cm por sesión de carrera</div></div>
-        ${data.sessionStride.labels.length ? `<div class="chart-box"><canvas id="chartStride"></canvas></div>` : `<div class="chart-empty">Registra pasos y distancia para ver la zancada.</div>`}
-      </section>
-
+      <section class="chart-card"><div class="chart-head"><div class="card-title">Peso</div><div class="sub">histórico</div></div>${data.weights.labels.length ? `<div class="chart-box"><canvas id="chartWeight"></canvas></div>` : `<div class="chart-empty">Aún no hay registros de peso suficientes.</div>`}</section>
+      <section class="chart-card"><div class="chart-head"><div class="card-title">Km semanales</div><div class="sub">carga de entrenamiento</div></div>${data.weeklyKm.labels.length ? `<div class="chart-box"><canvas id="chartKm"></canvas></div>` : `<div class="chart-empty">Aún no hay kilómetros acumulados.</div>`}</section>
+      <section class="chart-card"><div class="chart-head"><div class="card-title">Ritmo promedio</div><div class="sub">min/km por sesión</div></div>${data.sessionPace.labels.length ? `<div class="chart-box"><canvas id="chartPace"></canvas></div>` : `<div class="chart-empty">Aún no hay sesiones de carrera con tiempo y distancia.</div>`}</section>
+      ${data.eventHeartRate.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Frecuencia media por evento</div><div class="sub">ppm</div></div><div class="chart-box"><canvas id="chartHeartRate"></canvas></div></section>` : ''}
+      ${data.eventSteps.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Pasos promedio por evento</div><div class="sub">pasos</div></div><div class="chart-box"><canvas id="chartSteps"></canvas></div></section>` : ''}
+      ${data.eventStride.labels.length ? `<section class="chart-card"><div class="chart-head"><div class="card-title">Zancada por evento</div><div class="sub">cm</div></div><div class="chart-box"><canvas id="chartStride"></canvas></div></section>` : ''}
+      <section class="chart-card"><div class="chart-head"><div class="card-title">Adherencia semanal</div><div class="sub">cumplimiento del plan</div></div>${data.adherence.labels.length ? `<div class="chart-box"><canvas id="chartAdherence"></canvas></div>` : `<div class="chart-empty">Crea un plan y completa sesiones para ver adherencia semanal.</div>`}</section>
+      <section class="chart-card"><div class="chart-head"><div><div class="card-title">Heatmap nutricional</div><div class="sub">últimos 365 días · año móvil</div></div></div><div class="heatmap-year-grid">${this.renderHeatmap(365)}</div><div class="heatmap-legend"><span>Menos</span><span class="heatmap-dot" style="background:#F2EFE7"></span><span class="heatmap-dot" style="background:#E1D5A3"></span><span class="heatmap-dot" style="background:#C8AE56"></span><span class="heatmap-dot" style="background:#9D7321"></span><span class="heatmap-dot" style="background:#37312B"></span><span>Más</span></div></section>
       ${this.renderProgressSignals()}
     `;
   },
@@ -612,6 +633,35 @@ const app = {
       });
     }
 
+
+    const heartCanvas = document.getElementById('chartHeartRate');
+    if(heartCanvas && data.eventHeartRate.labels.length){
+      const axis = this.getNiceAxisBounds(data.eventHeartRate.values, { clampZero:true });
+      this.charts.heartRate = new Chart(heartCanvas, {
+        type:'line',
+        data:{ labels:data.eventHeartRate.labels, datasets:[{ data:data.eventHeartRate.values, borderColor:'#E66F5E', backgroundColor:'rgba(230,111,94,.12)', fill:true, pointBackgroundColor:'#E66F5E', pointRadius:4, tension:.35 }] },
+        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventHeartRate.fullDates, items), label:(ctx)=>`${ctx.parsed.y} bpm`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
+      });
+    }
+    const stepsCanvas = document.getElementById('chartSteps');
+    if(stepsCanvas && data.eventSteps.labels.length){
+      const axis = this.getNiceAxisBounds(data.eventSteps.values, { clampZero:true });
+      this.charts.steps = new Chart(stepsCanvas, {
+        type:'bar',
+        data:{ labels:data.eventSteps.labels, datasets:[{ data:data.eventSteps.values, backgroundColor:'#7ABDE0', borderRadius:12 }] },
+        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventSteps.fullDates, items), label:(ctx)=>`${Math.round(ctx.parsed.y)} pasos`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
+      });
+    }
+    const strideCanvas = document.getElementById('chartStride');
+    if(strideCanvas && data.eventStride.labels.length){
+      const axis = this.getNiceAxisBounds(data.eventStride.values, { clampZero:true });
+      this.charts.stride = new Chart(strideCanvas, {
+        type:'line',
+        data:{ labels:data.eventStride.labels, datasets:[{ data:data.eventStride.values, borderColor:'#6ECFBA', backgroundColor:'rgba(110,207,186,.12)', fill:true, pointBackgroundColor:'#1E3A52', pointRadius:4, tension:.35 }] },
+        options:{...common, plugins:{...common.plugins, tooltip:{callbacks:{title:(items)=>this.chartDateTitle(data.eventStride.fullDates, items), label:(ctx)=>`${Math.round(ctx.parsed.y)} cm`}}}, scales:{...common.scales, y:{...common.scales.y, min:axis.min, max:axis.max, ticks:{...common.scales.y.ticks, stepSize:axis.step}}}}
+      });
+    }
+
     const adhCanvas = document.getElementById('chartAdherence');
     if(adhCanvas && data.adherence.labels.length){
       this.charts.adherence = new Chart(adhCanvas, {
@@ -619,7 +669,7 @@ const app = {
         data:{ labels:data.adherence.labels, datasets:[{ data:data.adherence.values, borderColor:'#4A7FA5', backgroundColor:'rgba(74,127,165,.12)', fill:true, pointBackgroundColor:'#4A7FA5', pointRadius:4, tension:.3 }] },
         options:{
           ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> items[0]?.label || '', label:(ctx)=> `Adherencia: ${ctx.parsed.y}%` } } },
+          plugins:{ ...common.plugins, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y}%` } } },
           scales:{
             ...common.scales,
             y:{ ...common.scales.y, min:0, max:100, ticks:{ ...common.scales.y.ticks, stepSize:20, callback:(v)=> `${v}%` } }
@@ -627,49 +677,6 @@ const app = {
         }
       });
     }
-
-    const fcCanvas = document.getElementById('chartFC');
-    if(fcCanvas && data.sessionFC.labels.length){
-      const axis = this.getNiceAxisBounds(data.sessionFC.values, { clampZero:true });
-      this.charts.fc = new Chart(fcCanvas, {
-        type:'line',
-        data:{ labels:data.sessionFC.labels, datasets:[{ data:data.sessionFC.values, borderColor:'#E05A5A', backgroundColor:'rgba(224,90,90,.10)', fill:true, pointBackgroundColor:'#E05A5A', pointRadius:4, tension:.35 }] },
-        options:{
-          ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionFC.fullDates, items), label:(ctx)=> `FC: ${ctx.parsed.y} bpm` } } },
-          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> `${v}` } } }
-        }
-      });
-    }
-
-    const stepsCanvas = document.getElementById('chartSteps');
-    if(stepsCanvas && data.sessionSteps.labels.length){
-      const axis = this.getNiceAxisBounds(data.sessionSteps.values, { clampZero:true });
-      this.charts.steps = new Chart(stepsCanvas, {
-        type:'bar',
-        data:{ labels:data.sessionSteps.labels, datasets:[{ data:data.sessionSteps.values, backgroundColor:'#7B8FD4', borderRadius:10 }] },
-        options:{
-          ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionSteps.fullDates, items), label:(ctx)=> `${this.formatThousands(ctx.parsed.y)} pasos` } } },
-          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> this.formatThousands(v) } } }
-        }
-      });
-    }
-
-    const strideCanvas = document.getElementById('chartStride');
-    if(strideCanvas && data.sessionStride.labels.length){
-      const axis = this.getNiceAxisBounds(data.sessionStride.values, { clampZero:true });
-      this.charts.stride = new Chart(strideCanvas, {
-        type:'line',
-        data:{ labels:data.sessionStride.labels, datasets:[{ data:data.sessionStride.values, borderColor:'#F4A33A', backgroundColor:'rgba(244,163,58,.10)', fill:true, pointBackgroundColor:'#F4A33A', pointRadius:4, tension:.35 }] },
-        options:{
-          ...common,
-          plugins:{ ...common.plugins, tooltip:{ callbacks:{ title:(items)=> this.chartDateTitle(data.sessionStride.fullDates, items), label:(ctx)=> `${ctx.parsed.y} cm` } } },
-          scales:{ ...common.scales, y:{ ...common.scales.y, min:axis.min, max:axis.max, ticks:{ ...common.scales.y.ticks, stepSize:axis.step, callback:(v)=> `${v} cm` } } }
-        }
-      });
-    }
-
     this.chartRenderLock = false;
   },
 
@@ -797,29 +804,12 @@ const app = {
   },
 
   medalCard(medal){
-    const customFront = medal.medalAsset ? `
-        <div class="medal-asset-photo">
-          <img src="${this.escapeAttr(medal.medalAsset)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-photo').classList.add('asset-error')">
-        </div>
-      ` : `
-        <div class="medal-coin">
-          <div class="scene"></div>
-          <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
-          <div class="medal-distance">${this.formatNumber(medal.distance)}K</div>
-        </div>
-      `;
-
-    return `
-      <article class="medal-card unlocked ${medal.medalAsset ? 'has-asset' : ''}" onclick="app.openMedalDetail('${medal.id}')">
-        <div class="medal-top">
-          <div class="medal-ribbon"></div>
-          <div class="medal-badge">✓</div>
-        </div>
-        ${customFront}
-        <div class="medal-name">${this.escapeHtml(medal.title)}</div>
-        <div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div>
-      </article>
-    `;
+    const assetConfig = this.getMedalAssetConfig(medal.medalAsset || '');
+    const frontSrc = assetConfig?.front || '';
+    const customFront = frontSrc ? `
+        <div class="medal-asset-coin clean-medal-face"><img src="${this.escapeAttr(frontSrc)}" alt="${this.escapeAttr(medal.title)}" loading="lazy" onerror="this.closest('.medal-asset-coin').classList.add('asset-error')"></div>` : `
+        <div class="medal-coin"><div class="scene"></div><div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div><div class="medal-distance">${this.formatNumber(medal.distance)}K</div></div>`;
+    return `<article class="medal-card unlocked ${frontSrc ? 'has-asset clean-asset' : ''}" onclick="app.openMedalDetail('${medal.id}')"><div class="medal-top"><div class="medal-badge">✓</div></div>${customFront}<div class="medal-name">${this.escapeHtml(medal.title)}</div><div class="medal-km">${this.formatNumber(medal.distance)}K · ${this.formatDateForBadge(medal.raceData.date)}</div></article>`;
   },
 
   buildMedalCollection(){
@@ -883,7 +873,9 @@ const app = {
         </div>
       </div>
     `;
-    this.showModal(html, null, true);
+    this.showModal(html, () => {
+      this.bindMedalFlipGesture();
+    }, true);
   },
 
   largeMedalMarkup(medal){
@@ -892,26 +884,13 @@ const app = {
     const paceText = r.pace || '--';
     const timeText = r.durationLabel || '--';
     const distanceText = r.distance ? `${this.formatNumber(r.distance)}K` : `${this.formatNumber(medal.distance)}K`;
-    const customFront = r.medalAsset ? `
-      <div class="medal-large-photo-wrap">
-        <img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" class="medal-large-photo" onerror="this.closest('.medal-large-photo-wrap').classList.add('asset-error')">
-      </div>
-    ` : `
-      <div class="medal-large apple-medal-front">
-        <div class="medal-ribbon"></div>
-        <div class="medal-coin">
-          <div class="scene"></div>
-          <div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div>
-          <div class="medal-distance">${distanceText}</div>
-        </div>
-      </div>
-    `;
-
-    return `
-      <div class="medal-static-display">
-        ${customFront}
-      </div>
-    `;
+    const assetConfig = this.getMedalAssetConfig(r.medalAsset || medal.medalAsset || '');
+    const hasAssetSet = !!(assetConfig && assetConfig.front && assetConfig.back && assetConfig.side);
+    if(hasAssetSet){
+      return `<div class="medal-flip-stage clean-stage" id="medalFlipStage"><div class="medal-flip-inner" id="medalFlipInner"><div class="medal-face medal-front"><div class="medal-large clean-medal-large"><div class="medal-face-asset"><img src="${this.escapeAttr(assetConfig.front)}" alt="${this.escapeAttr(r.name || medal.title)} frente"></div></div></div><div class="medal-face medal-edge medal-edge-right"><div class="medal-edge-asset"><img src="${this.escapeAttr(assetConfig.side)}" alt="${this.escapeAttr(r.name || medal.title)} costado"></div></div><div class="medal-face medal-edge medal-edge-left"><div class="medal-edge-asset mirror"><img src="${this.escapeAttr(assetConfig.side)}" alt="${this.escapeAttr(r.name || medal.title)} costado"></div></div><div class="medal-face medal-back"><div class="medal-large clean-medal-large"><div class="medal-face-asset"><img src="${this.escapeAttr(assetConfig.back)}" alt="${this.escapeAttr(r.name || medal.title)} reverso"></div></div></div></div></div><div class="medal-gesture-hint">Desliza sobre la medalla para girarla</div>`;
+    }
+    const customFront = r.medalAsset ? `<div class="medal-large apple-medal-front custom-medal-front"><div class="medal-ribbon"></div><div class="medal-large-asset-shell"><img src="${this.escapeAttr(r.medalAsset)}" alt="${this.escapeAttr(r.name || medal.title)}" onerror="this.closest('.medal-large-asset-shell').classList.add('asset-error')"><div class="medal-large-metal-shine"></div><div class="medal-distance">${distanceText}</div></div></div>` : `<div class="medal-large apple-medal-front"><div class="medal-ribbon"></div><div class="medal-coin"><div class="scene"></div><div class="title-ring">${this.escapeHtml(medal.ringTitle || medal.title)}</div><div class="medal-distance">${distanceText}</div></div></div>`;
+    return `<div class="medal-flip-stage" id="medalFlipStage"><div class="medal-flip-inner" id="medalFlipInner"><div class="medal-face medal-front">${customFront}</div><div class="medal-face medal-edge medal-edge-right"><div class="medal-edge-disc"></div></div><div class="medal-face medal-edge medal-edge-left"><div class="medal-edge-disc"></div></div><div class="medal-face medal-back"><div class="medal-large apple-medal-back"><div class="medal-back-disc"><div class="medal-back-text">OBTENIDO<br>${this.escapeHtml(dateText)}</div><div class="medal-back-hole"></div><div class="medal-back-bottom"><div class="medal-back-pill">Ritmo <b>${this.escapeHtml(paceText)}</b></div><div class="medal-back-pill">Tiempo <b>${this.escapeHtml(timeText)}</b></div></div></div></div></div></div></div><div class="medal-gesture-hint">Desliza sobre la medalla para girarla</div>`;
   },
 
   bindMedalFlipGesture(){
@@ -1628,50 +1607,12 @@ const app = {
 
 
   medalAssetOptions(selected=''){
-    const known = this.medalAssetCatalog.some(asset => asset.value === selected);
-    const options = this.medalAssetCatalog.map(asset => `<option value="${this.escapeAttr(asset.value)}" ${asset.value === selected ? 'selected' : ''}>${this.escapeHtml(asset.label)}</option>`);
-    if(selected && !known) options.push(`<option value="${this.escapeAttr(selected)}" selected>Asset actual · ${this.escapeHtml(selected)}</option>`);
+    const assetConfig = this.getMedalAssetConfig(selected || '');
+    const normalized = assetConfig ? assetConfig.value : selected;
+    const known = this.medalAssetCatalog.some(asset => asset.value === normalized);
+    const options = this.medalAssetCatalog.map(asset => `<option value="${this.escapeAttr(asset.value)}" ${asset.value === normalized ? 'selected' : ''}>${this.escapeHtml(asset.label)}</option>`);
+    if(normalized && !known) options.push(`<option value="${this.escapeAttr(normalized)}" selected>Asset actual · ${this.escapeHtml(normalized)}</option>`);
     return options.join('');
-  },
-
-  medalPickerHTML(selected=''){
-    const items = this.medalAssetCatalog.map(asset => `
-      <div class="medal-picker-item ${asset.value === selected ? 'selected' : ''}"
-           onclick="app.selectMedalAsset('${this.escapeAttr(asset.value)}', this)"
-           title="${this.escapeAttr(asset.label)}">
-        <div class="medal-picker-thumb">
-          <img src="${this.escapeAttr(asset.value)}" alt="${this.escapeAttr(asset.label)}"
-               onerror="this.closest('.medal-picker-thumb').classList.add('thumb-error')">
-        </div>
-        <div class="medal-picker-name">${this.escapeHtml(asset.label)}</div>
-      </div>
-    `).join('');
-    const noneSelected = !selected || !this.medalAssetCatalog.some(a=>a.value===selected);
-    return `
-      <div class="medal-picker-item ${noneSelected ? 'selected' : ''}"
-           onclick="app.selectMedalAsset('', this)" title="Sin imagen">
-        <div class="medal-picker-thumb medal-picker-none">
-          <span>Sin imagen</span>
-        </div>
-        <div class="medal-picker-name">Ninguna</div>
-      </div>
-      ${items}
-    `;
-  },
-
-  selectMedalAsset(value, el){
-    document.getElementById('editMedalAsset').value = value;
-    document.getElementById('editMedalAssetUrl').value = '';
-    document.querySelectorAll('.medal-picker-item').forEach(i => i.classList.remove('selected'));
-    el.classList.add('selected');
-  },
-
-  applyMedalAssetUrl(){
-    const url = document.getElementById('editMedalAssetUrl').value.trim();
-    if(!url) return;
-    document.getElementById('editMedalAsset').value = url;
-    document.querySelectorAll('.medal-picker-item').forEach(i => i.classList.remove('selected'));
-    this.showToast('URL aplicada. Guarda para confirmar.');
   },
 
   openMedalEditModal(id){
@@ -1689,17 +1630,7 @@ const app = {
         <input id="editMedalDate" type="date" value="${this.escapeAttr(r.date || this.todayISO())}">
         <input id="editMedalDistance" type="number" step="0.01" value="${this.escapeAttr(r.distance || '')}" placeholder="Distancia km">
         <label class="modal-field-label">Medalla</label>
-        <div class="medal-picker" id="medalPicker">
-          ${this.medalPickerHTML(r.medalAsset || '')}
-        </div>
-        <div class="medal-picker-custom">
-          <span class="modal-field-label" style="margin-bottom:4px;display:block">O pega una URL de imagen</span>
-          <div style="display:flex;gap:8px">
-            <input id="editMedalAssetUrl" type="url" placeholder="https://…/medalla.webp" value="${this.escapeAttr(!this.medalAssetCatalog.some(a=>a.value===r.medalAsset) && r.medalAsset ? r.medalAsset : '')}">
-            <button class="mini-btn" onclick="app.applyMedalAssetUrl()">Usar</button>
-          </div>
-        </div>
-        <input type="hidden" id="editMedalAsset" value="${this.escapeAttr(r.medalAsset || '')}">
+        <select id="editMedalAsset">${this.medalAssetOptions(r.medalAsset || '')}</select>
         <div class="time-picker-label">Tiempo</div>
         <div class="time-picker">
           <div id="editMedalHourWheel" class="wheel"></div><div class="wheel-unit">:</div>
@@ -1773,53 +1704,23 @@ const app = {
 
   openPlanModal(){
     const id = `plan_${Date.now()}`;
-    this._renderPlanModal({ id, name:`Plan semana ${this.db.plans.length + 1}`, days:[], isNew:true });
-  },
-
-  editPlan(id){
-    const p = this.db.plans.find(x=>x.id===id); if(!p) return;
-    this._renderPlanModal({ ...JSON.parse(JSON.stringify(p)), isNew:false });
-  },
-
-  _renderPlanModal({ id, name, days, isNew }){
-    const existingDay = (day) => days.find(d=>d.day===day) || {};
-    const rows = this.dayNames.map(day => {
-      const d = existingDay(day);
-      const on = d.enabled ? 'on' : '';
-      const km = d.km || '';
-      const fc = d.fcTarget || '';
-      const pace = d.paceTarget || '';
-      const dis = d.enabled ? '' : 'disabled';
-      return `
-        <div class="plan-day-row">
-          <div class="plan-day-header">
-            <button class="check ${on}" data-day="${day}" onclick="app.togglePlanCheck(this)">✓</button>
-            <span class="plan-day-name">${day}</span>
-          </div>
-          <div class="plan-day-fields" id="fields-${day}" style="${d.enabled ? '' : 'display:none'}">
-            <label class="plan-field-label">
-              <span>Km objetivo</span>
-              <input type="number" step="0.1" min="0" placeholder="km" data-km="${day}" value="${km}" ${dis}>
-            </label>
-            <label class="plan-field-label">
-              <span>FC objetivo <small>(opcional)</small></span>
-              <input type="number" step="1" min="100" max="220" placeholder="ej. 155" data-fc="${day}" value="${fc}" ${dis}>
-            </label>
-            <label class="plan-field-label">
-              <span>Ritmo objetivo <small>(opcional)</small></span>
-              <input type="text" placeholder="ej. 5:30" data-pace="${day}" value="${pace}" ${dis}>
-            </label>
-          </div>
+    const rows = this.dayNames.map(day => `
+      <div class="plan-day">
+        <button class="check" data-day="${day}" onclick="app.togglePlanCheck(this)">✓</button>
+        <div>
+          <div style="font-weight:800;color:var(--navy)">${day}</div>
+          <div class="sub">Entrenamiento de carrera o fuerza</div>
         </div>
-      `;
-    }).join('');
+        <input type="number" step="0.1" placeholder="km" data-km="${day}" disabled>
+      </div>
+    `).join('');
     this.showModal(`
-      <div class="modal-box plan-modal-box">
-        <div class="modal-title">${isNew ? 'Crear plan semanal' : 'Editar plan'}</div>
-        <div class="modal-subtitle">Activa los días de entrenamiento. FC y ritmo son opcionales.</div>
-        <input id="planName" value="${this.escapeAttr(name)}" placeholder="Nombre del plan">
-        <div class="plan-days-list">${rows}</div>
-        <button class="btn" onclick="app.savePlanModal('${id}', ${isNew})">Guardar plan</button>
+      <div class="modal-box">
+        <div class="modal-title">Crear plan semanal</div>
+        <div class="modal-subtitle">Agrega días de entrenamiento y luego define kilómetros objetivo. Si el día es de fuerza, deja km vacío.</div>
+        <input id="planName" value="Plan semana ${this.db.plans.length + 1}" placeholder="Nombre del plan">
+        <div class="plan-list">${rows}</div>
+        <button class="btn" onclick="app.savePlanModal('${id}')">Guardar plan</button>
         <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
       </div>
     `);
@@ -1827,46 +1728,24 @@ const app = {
   togglePlanCheck(btn){
     btn.classList.toggle('on');
     const day = btn.dataset.day;
-    const on = btn.classList.contains('on');
-    const fields = document.getElementById(`fields-${day}`);
-    if(fields) fields.style.display = on ? '' : 'none';
-    document.querySelectorAll(`[data-km="${day}"],[data-fc="${day}"],[data-pace="${day}"]`).forEach(el => el.disabled = !on);
+    const input = document.querySelector(`[data-km="${day}"]`);
+    input.disabled = !btn.classList.contains('on');
   },
-  savePlanModal(id, isNew = true){
+  savePlanModal(id){
     const name = document.getElementById('planName').value.trim() || `Plan semana ${this.db.plans.length + 1}`;
     const days = this.dayNames.map(day => {
       const enabled = document.querySelector(`.check[data-day="${day}"]`).classList.contains('on');
-      const km = Number(document.querySelector(`[data-km="${day}"]`)?.value || 0);
-      const fcRaw = document.querySelector(`[data-fc="${day}"]`)?.value?.trim();
-      const paceRaw = document.querySelector(`[data-pace="${day}"]`)?.value?.trim();
-      const fcTarget = fcRaw ? Number(fcRaw) : null;
-      const paceTarget = paceRaw || null;
-      return { day, enabled, type: km > 0 ? 'run' : 'strength', km: enabled ? km : 0, ...(fcTarget ? { fcTarget } : {}), ...(paceTarget ? { paceTarget } : {}) };
+      const km = Number(document.querySelector(`[data-km="${day}"]`).value || 0);
+      return { day, enabled, type: km > 0 ? 'run' : 'strength', km: enabled ? km : 0 };
     });
-    if(isNew){
-      this.db.plans.push({ id, name, createdAt:new Date().toISOString(), days });
-    } else {
-      const idx = this.db.plans.findIndex(x=>x.id===id);
-      if(idx >= 0) this.db.plans[idx] = { ...this.db.plans[idx], name, days };
-    }
+    this.db.plans.push({ id, name, createdAt:new Date().toISOString(), days });
     this.closeModal();
     this.renderAll();
-    this.showToast(isNew ? 'Plan creado.' : 'Plan actualizado.');
   },
   duplicatePlan(id){
     const p = this.db.plans.find(x=>x.id===id); if(!p) return;
     this.db.plans.push({ ...JSON.parse(JSON.stringify(p)), id:`plan_${Date.now()}`, name:`${p.name} copia`, createdAt:new Date().toISOString() });
     this.renderAll();
-  },
-
-  deletePlan(id){
-    const p = this.db.plans.find(x=>x.id===id); if(!p) return;
-    const isActive = this.getActivePlan()?.id === id;
-    const label = isActive ? `"${p.name}" es el plan activo. ¿Eliminarlo de todas formas?` : `¿Eliminar el plan "${p.name}"? Esta acción no se puede deshacer.`;
-    if(!confirm(label)) return;
-    this.db.plans = this.db.plans.filter(x=>x.id!==id);
-    this.renderAll();
-    this.showToast('Plan eliminado.');
   },
 
 
@@ -2075,11 +1954,23 @@ const app = {
       weights:{ labels: filteredWeights.map(w => this.shortChartDate(w.date)), fullDates: filteredWeights.map(w => w.date), values: filteredWeights.map(w => Number(w.value)) },
       weeklyKm:this.weeklyKmSeries(filteredSessions),
       sessionPace:this.sessionPaceSeries(filteredSessions),
-      sessionFC:this.sessionFCSeries(filteredSessions),
-      sessionSteps:this.sessionStepsSeries(filteredSessions),
-      sessionStride:this.sessionStrideSeries(filteredSessions),
+      eventHeartRate:this.eventHeartRateSeries(filteredSessions),
+      eventSteps:this.eventStepsSeries(filteredSessions),
+      eventStride:this.eventStrideSeries(filteredSessions),
       adherence
     };
+  },
+  eventHeartRateSeries(sessions){
+    const runs = sessions.filter(s=>s.type==='run' && Number(s.fc || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
+    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.fc)) };
+  },
+  eventStepsSeries(sessions){
+    const runs = sessions.filter(s=>s.type==='run' && Number(s.steps || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
+    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.steps)) };
+  },
+  eventStrideSeries(sessions){
+    const runs = sessions.map(s=>this.sessionMetricsView(s)).filter(s=>s.type==='run' && Number(s.strideLength || 0) > 0).sort((a,b)=> new Date(a.date)-new Date(b.date));
+    return { labels:runs.map(s=>this.shortChartDate(s.date)), fullDates:runs.map(s=>s.date), values:runs.map(s=>Number(s.strideLength)) };
   },
   weeklyKmSeries(sessions){
     const map = {};
@@ -2095,36 +1986,6 @@ const app = {
       // Mantener precisión completa: no redondear a 2 decimales antes de graficar.
       // Ej: 02:24:00 / 21K = 6.857142 min/km => tooltip 6:51, no 6:52.
       values: runs.map(s => Number(s.timeSeconds) / Number(s.km) / 60)
-    };
-  },
-  sessionFCSeries(sessions){
-    const runs = sessions.filter(s => s.type === 'run' && Number(s.fc) > 0)
-      .sort((a,b)=> new Date(a.date) - new Date(b.date));
-    return {
-      labels: runs.map(s => this.shortChartDate(s.date)),
-      fullDates: runs.map(s => s.date),
-      values: runs.map(s => Number(s.fc))
-    };
-  },
-  sessionStepsSeries(sessions){
-    const runs = sessions.filter(s => s.type === 'run' && Number(s.steps) > 0)
-      .sort((a,b)=> new Date(a.date) - new Date(b.date));
-    return {
-      labels: runs.map(s => this.shortChartDate(s.date)),
-      fullDates: runs.map(s => s.date),
-      values: runs.map(s => Number(s.steps))
-    };
-  },
-  sessionStrideSeries(sessions){
-    const runs = sessions
-      .filter(s => s.type === 'run' && Number(s.km) > 0 && Number(s.steps) > 0)
-      .sort((a,b)=> new Date(a.date) - new Date(b.date))
-      .map(s => ({ ...s, _stride: Math.round((Number(s.km) * 100000) / Number(s.steps)) }))
-      .filter(s => s._stride > 0);
-    return {
-      labels: runs.map(s => this.shortChartDate(s.date)),
-      fullDates: runs.map(s => s.date),
-      values: runs.map(s => s._stride)
     };
   },
   weeklyAdherenceSeries(sessions){
@@ -2184,6 +2045,7 @@ const app = {
         if(remote){
           this.cloudApplyingRemote = true;
           this.db = this.mergeCloudData(this.db, remote);
+          this.normalizeDatabase();
           localStorage.setItem(this.storageKey, JSON.stringify(this.db));
           this.cloudApplyingRemote = false;
           this.renderAll(true);
@@ -2238,6 +2100,7 @@ const app = {
       if(remote){
         this.cloudApplyingRemote = true;
         this.db = this.mergeCloudData(this.db, remote);
+        this.normalizeDatabase();
         localStorage.setItem(this.storageKey, JSON.stringify(this.db));
         this.cloudApplyingRemote = false;
         this.cloudStatus = 'synced';
@@ -2476,7 +2339,11 @@ const app = {
     if(longPending){
       signals.risk.push({ icon:'🏃', title:'Tirada larga pendiente', text:`Queda pendiente ${longPending.day} · ${this.formatNumber(longPending.km)} km.`, priority:3 });
     }
-    // Señales nutricionales ocultas
+    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutAlcohol} días sin alcohol`, text:'Buena señal para recuperación, sueño y peso.', priority:4 });
+    signals.streaks.push({ icon:'✅', title:`${habits.daysWithoutOffPlan} día${habits.daysWithoutOffPlan === 1 ? '' : 's'} adherido${habits.daysWithoutOffPlan === 1 ? '' : 's'} a la pauta`, text:'Consistencia nutricional limpia.', priority:5 });
+    if(habits.cleanWeeks > 0){
+      signals.streaks.push({ icon:'🌿', title:`${habits.cleanWeeks} semanas limpias`, text:'Sin alcohol ni comidas fuera de plan.', priority:6 });
+    }
     const bestWeek = this.currentWeekIsBest();
     if(bestWeek.isBest && bestWeek.currentKm > 0){
       signals.achievements.push({ icon:'🏅', title:'Nuevo mejor volumen semanal', text:`Esta semana llevas ${this.formatNumber(bestWeek.currentKm)} km.`, priority:7 });
@@ -2732,7 +2599,7 @@ const app = {
     if(km > 0 && timeSeconds > 0){
       const paceSec = timeSeconds / km;
       pace = this.formatPaceSeconds(paceSec);
-      paceValue = Number((paceSec / 60).toFixed(2));
+      paceValue = paceSec / 60;
       speed = Number(((km / timeSeconds) * 3600).toFixed(2));
     }
     if(steps > 0 && timeSeconds > 0){
@@ -2856,16 +2723,6 @@ const app = {
     return `${y}-${m}-${day}`;
   },
   formatNumber(v){ const n = Number(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(1); },
-  formatThousands(v, isDecimal=false){
-    const n = Number(v || 0);
-    if(!Number.isFinite(n)) return '0';
-    if(isDecimal){
-      const rounded = Math.round(n * 100) / 100;
-      const str = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
-      return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    }
-    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  },
   formatDistance(v){
     const n = Number(v || 0);
     if(!Number.isFinite(n)) return '0';
