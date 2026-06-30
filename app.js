@@ -75,6 +75,7 @@ const app = {
       plans:[],
       sessions:[],
       completedRaces:[],
+      sergioMonitor: this.buildDefaultSergioMonitor(),
       nutrition:{
         patientName:'Diego Moris S.',
         period:'mar-may25',
@@ -111,7 +112,7 @@ const app = {
         pauta:'Menú sugerido de descanso: D: Yogur + pan + 3 huevos · A: 320g corvina + brócoli + champiñones · C: 2 tortillas + pollo + rúcula + palta'
       },
       nutritionLogs:{},
-      version:'0.7.8'
+      version:'0.8.0'
     };
   },
 
@@ -120,10 +121,61 @@ const app = {
       const saved = localStorage.getItem(this.storageKey);
       if(saved){
         const parsed = JSON.parse(saved);
-        return { ...this.defaultDB(), ...parsed, profile:{...this.defaultDB().profile, ...(parsed.profile||{})}, sync:{...this.defaultDB().sync, ...(parsed.sync||{})}, nutrition:{...this.defaultDB().nutrition, ...(parsed.nutrition||{})} };
+        return { ...this.defaultDB(), ...parsed, profile:{...this.defaultDB().profile, ...(parsed.profile||{})}, sync:{...this.defaultDB().sync, ...(parsed.sync||{})}, nutrition:{...this.defaultDB().nutrition, ...(parsed.nutrition||{})}, sergioMonitor: this.mergeSergioMonitor(this.defaultDB().sergioMonitor, parsed.sergioMonitor || {}) };
       }
     }catch(e){ console.error(e); }
     return this.defaultDB();
+  },
+
+
+  buildDefaultSergioMonitor(){
+    const seed = JSON.parse(JSON.stringify(this.sergioSeed || {}));
+    return {
+      enabled:true,
+      athlete: seed.athlete || { id:'sergio_espinoza', name:'Sergio', short_name:'Sergio', height_cm:184, current_weight_kg:116 },
+      meta: seed.meta || {},
+      weight_logs: seed.weight_logs || [],
+      weight_projection: seed.weight_projection || {},
+      training_sessions: seed.training_sessions || [],
+      monthly_summaries: seed.monthly_summaries || [],
+      planned_weeks: seed.planned_weeks || [],
+      planned_sessions: seed.planned_sessions || [],
+      compliance_daily: seed.compliance_daily || [],
+      race_events: seed.race_events || [],
+      discourse_logs: seed.discourse_logs || [],
+      injury_alerts: seed.injury_alerts || [],
+      coach_messages: seed.coach_messages || [],
+      imports:[],
+      updatedAt: Date.now()
+    };
+  },
+
+  mergeSergioMonitor(base = {}, incoming = {}){
+    const monitor = { ...this.buildDefaultSergioMonitor(), ...(base || {}), ...(incoming || {}) };
+    monitor.athlete = { ...(base.athlete || {}), ...(incoming.athlete || monitor.athlete || {}) };
+    monitor.meta = { ...(base.meta || {}), ...(incoming.meta || monitor.meta || {}) };
+    const byId = (a = [], b = [], fallbackPrefix='item') => {
+      const map = new Map();
+      [...(a||[]), ...(b||[])].forEach((item, idx)=>{
+        if(!item) return;
+        const key = item.id || item.date || `${fallbackPrefix}_${idx}_${JSON.stringify(item).slice(0,40)}`;
+        map.set(key, { ...(map.get(key)||{}), ...item, id: item.id || key });
+      });
+      return [...map.values()];
+    };
+    monitor.weight_logs = byId(base.weight_logs, incoming.weight_logs, 'weight').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.training_sessions = byId(base.training_sessions, incoming.training_sessions, 'training').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.monthly_summaries = byId(base.monthly_summaries, incoming.monthly_summaries, 'month');
+    monitor.planned_weeks = byId(base.planned_weeks, incoming.planned_weeks, 'week').sort((a,b)=>new Date(a.week_start||0)-new Date(b.week_start||0));
+    monitor.planned_sessions = byId(base.planned_sessions, incoming.planned_sessions, 'planned').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.compliance_daily = byId(base.compliance_daily, incoming.compliance_daily, 'compliance').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.race_events = byId(base.race_events, incoming.race_events, 'race').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.discourse_logs = byId(base.discourse_logs, incoming.discourse_logs, 'discourse').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.injury_alerts = byId(base.injury_alerts, incoming.injury_alerts, 'injury').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    monitor.coach_messages = byId(base.coach_messages, incoming.coach_messages, 'message');
+    monitor.imports = byId(base.imports, incoming.imports, 'import');
+    monitor.updatedAt = Math.max(Number(base.updatedAt||0), Number(incoming.updatedAt||0), Date.now());
+    return monitor;
   },
 
   getMedalAssetConfig(value=''){
@@ -144,7 +196,7 @@ const app = {
 
   normalizeDatabase(){
     if(!this.db) return;
-    this.db.version = '0.7.8';
+    this.db.version = '0.8.0';
     this.db.sessions = (this.db.sessions || []).map(session => {
       if(session?.type !== 'run') return session;
       const calc = this.computeRunMetrics(Number(session.km || 0), Number(session.timeSeconds || 0), Number(session.steps || 0));
@@ -205,6 +257,7 @@ const app = {
     this.renderProgreso();
     this.renderNutricion();
     this.renderMedallas();
+    this.renderSergio();
     if(document.getElementById('progreso').classList.contains('active')) setTimeout(()=>this.renderCharts(), 30);
     if(!skipSave) this.save();
   },
@@ -358,6 +411,297 @@ const app = {
         </div>
       </article>
     `;
+  },
+
+
+  renderSergio(){
+    const page = document.getElementById('sergio');
+    if(!page) return;
+    const m = this.db.sergioMonitor || this.buildDefaultSergioMonitor();
+    const week = this.getSergioActiveWeek();
+    const summary = this.getSergioWeekSummary(week);
+    const latestEvidence = this.getSergioLatestEvidence(5);
+    const discourse = [...(m.discourse_logs||[])].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,4);
+    const alerts = (m.injury_alerts||[]).filter(a => String(a.status||'').toLowerCase() !== 'closed').slice(0,4);
+    const races = [...(m.race_events||[])].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,3);
+
+    page.innerHTML = `
+      ${this.header()}
+      <div class="sergio-hero">
+        <div>
+          <div class="label">Monitor Sergio</div>
+          <h1>${this.escapeHtml(m.athlete?.short_name || 'Sergio')}</h1>
+          <div class="sub">${this.escapeHtml(m.athlete?.name || 'Sergio')} · ${m.athlete?.height_cm || '--'} cm · peso base ${this.formatNumber(m.athlete?.current_weight_kg || 0)} kg</div>
+        </div>
+        <div class="sergio-verdict ${summary.riskClass}">
+          <small>Semana vigente</small>
+          <b>${summary.label}</b>
+          <span>${summary.verdict}</span>
+        </div>
+      </div>
+
+      <section class="card sergio-main-card">
+        <div class="section-head compact-section-head">
+          <div>
+            <div class="label">Plan vs evidencia</div>
+            <div class="card-title">${summary.actualKm} / ${summary.targetKm} km cumplidos</div>
+            <div class="sub">${summary.percent}% del objetivo semanal · ${summary.completedSessions}/${summary.plannedSessions} sesiones con evidencia</div>
+          </div>
+          <button class="pill" onclick="app.openSergioImportModal()">Importar JSON</button>
+        </div>
+        <div class="progress sergio-progress"><div style="width:${Math.min(100, summary.percent)}%"></div></div>
+        <div class="sergio-kpi-grid">
+          <div><small>Objetivo semanal</small><b>${summary.targetKm} km</b></div>
+          <div><small>Real semanal</small><b>${summary.actualKm} km</b></div>
+          <div><small>Adherencia km</small><b>${summary.percent}%</b></div>
+          <div><small>Estado lesión</small><b>${alerts.length ? 'Watch' : 'Sin alerta'}</b></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head compact-section-head">
+          <div><div class="label">Heatmap semanal</div><div class="sub">Verde cumple · amarillo parcial · rojo sin evidencia · gris futuro</div></div>
+        </div>
+        <div class="sergio-week-grid">${this.renderSergioWeekGrid(summary.days)}</div>
+      </section>
+
+      <section class="card sergio-actions-card">
+        <div class="label">Exportación para análisis en chat</div>
+        <div class="sub">Copia JSON, CSV o resumen TXT para pegarlo directamente en ChatGPT.</div>
+        <div class="sergio-export-actions">
+          <button class="pill" onclick="app.copySergioJSON()">Copiar JSON completo</button>
+          <button class="pill light" onclick="app.copySergioTXT()">Copiar resumen TXT</button>
+          <button class="pill light" onclick="app.copySergioTrainingCSV()">Copiar CSV entrenamientos</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="label">Última evidencia</div>
+        ${latestEvidence.length ? latestEvidence.map(e => this.renderSergioEvidenceCard(e)).join('') : `<div class="empty">Sin evidencia cargada.</div>`}
+      </section>
+
+      <section class="card">
+        <div class="label">Discurso y promesas</div>
+        ${discourse.length ? discourse.map(d => this.renderSergioDiscourseCard(d)).join('') : `<div class="empty">Sin registros de discurso.</div>`}
+      </section>
+
+      <section class="card">
+        <div class="label">Alertas activas</div>
+        ${alerts.length ? alerts.map(a => `<article class="sergio-alert"><b>${this.escapeHtml(a.issue || a.area || 'Alerta')}</b><span>${this.escapeHtml(a.rule || a.notes || '')}</span><small>${this.formatDateDMY(a.date)} · ${this.escapeHtml(a.status || 'watch')}</small></article>`).join('') : `<div class="empty">Sin alertas activas.</div>`}
+      </section>
+
+      <section class="card">
+        <div class="label">Medallero Sergio</div>
+        <div class="sergio-races">${races.map(r => `<div class="sergio-race-pill"><b>🏅 ${this.escapeHtml(r.event_name || r.raceName || 'Carrera')}</b><span>${this.formatDuration(Number(r.official_time_sec || r.time_sec || 0))} · ${this.formatSergioPace(r.official_pace_sec_per_km || r.pace_sec_per_km)} · ${this.escapeHtml(r.source || '')}</span></div>`).join('')}</div>
+      </section>
+    `;
+  },
+
+  getSergioActiveWeek(){
+    const m = this.db.sergioMonitor || this.buildDefaultSergioMonitor();
+    const today = this.todayISO();
+    const weeks = [...(m.planned_weeks||[])].sort((a,b)=>new Date(b.week_start||0)-new Date(a.week_start||0));
+    return weeks.find(w => w.week_start <= today && w.week_end >= today) || weeks[0] || null;
+  },
+
+  getSergioWeekSummary(week){
+    const m = this.db.sergioMonitor || this.buildDefaultSergioMonitor();
+    if(!week){
+      return { label:'Sin semana', verdict:'Carga un plan semanal', targetKm:0, actualKm:0, percent:0, completedSessions:0, plannedSessions:0, days:[], riskClass:'watch' };
+    }
+    const planned = (m.planned_sessions||[]).filter(s => s.week_id === week.id || (s.date >= week.week_start && s.date <= week.week_end));
+    const compliance = (m.compliance_daily||[]).filter(d => d.date >= week.week_start && d.date <= week.week_end);
+    const actualFromCompliance = compliance.reduce((a,d)=> a + Number(d.actual_km || 0), 0);
+    const sessions = (m.training_sessions||[]).filter(s => s.date >= week.week_start && s.date <= week.week_end && Number(s.distance_km || 0) > 0);
+    const actualFromSessions = sessions.reduce((a,s)=> a + Number(s.distance_km || 0), 0);
+    const actual = Math.max(actualFromCompliance, actualFromSessions);
+    const target = Number(week.target_km || planned.reduce((a,s)=>a+Number(s.target_km||0),0) || 0);
+    const percent = target ? Math.round((actual/target)*100) : 0;
+    const completedSessions = compliance.filter(d => Number(d.actual_km || 0) > 0).length || sessions.length;
+    const days = planned.map(p => {
+      const c = compliance.find(d => d.date === p.date) || {};
+      const actualKm = Number(c.actual_km || sessions.filter(s=>s.date===p.date).reduce((a,s)=>a+Number(s.distance_km||0),0));
+      const plannedKm = Number(p.target_km || c.planned_km || 0);
+      const status = c.status || (actualKm >= plannedKm && plannedKm > 0 ? 'green' : actualKm > 0 ? 'yellow' : (p.date < this.todayISO() ? 'red' : 'future'));
+      return { ...p, actualKm, plannedKm, status, pct: plannedKm ? Math.round(actualKm/plannedKm*100) : 0 };
+    });
+    return {
+      label:`${this.formatDateDMY(week.week_start)} → ${this.formatDateDMY(week.week_end)}`,
+      verdict: percent >= 90 ? 'Semana sólida con evidencia' : percent >= 50 ? 'Semana parcial, falta cerrar evidencia' : 'Bajo objetivo: revisar carga y ejecución',
+      targetKm:this.formatDistance(target),
+      actualKm:this.formatDistance(actual),
+      percent,
+      completedSessions,
+      plannedSessions: planned.length,
+      days,
+      riskClass: percent >= 90 ? 'ok' : percent >= 50 ? 'partial' : 'watch'
+    };
+  },
+
+  renderSergioWeekGrid(days=[]){
+    return days.length ? days.map(d => `
+      <div class="sergio-day ${this.escapeAttr(d.status)}">
+        <b>${this.escapeHtml(d.day || this.weekdayName(d.date))}</b>
+        <span>${this.formatDistance(d.actualKm)} / ${this.formatDistance(d.plannedKm)} km</span>
+        <small>${d.status === 'green' ? 'Cumplido' : d.status === 'yellow' ? 'Parcial' : d.status === 'red' ? 'Sin evidencia' : 'Futuro'}</small>
+      </div>`).join('') : `<div class="empty">Sin días planificados.</div>`;
+  },
+
+  getSergioLatestEvidence(limit=5){
+    const m = this.db.sergioMonitor || this.buildDefaultSergioMonitor();
+    return [...(m.training_sessions||[])]
+      .sort((a,b)=> new Date(b.date||0)-new Date(a.date||0))
+      .slice(0, limit);
+  },
+
+  renderSergioEvidenceCard(e){
+    const secs = Number(e.duration_sec || e.time_sec || 0);
+    return `<article class="sergio-evidence">
+      <div><b>${this.formatDateDMY(e.date)} · ${this.escapeHtml(e.type || 'evidencia')}</b><span>${this.formatDistance(e.distance_km || 0)} km · ${secs ? this.formatDuration(secs) : '--'} · ${this.formatSergioPace(e.pace_sec_per_km)} · FC ${e.avg_hr || '--'}</span></div>
+      <div class="evidence-badge">${this.escapeHtml(e.source || e.evidence || 'manual')}</div>
+    </article>`;
+  },
+
+  renderSergioDiscourseCard(d){
+    return `<article class="sergio-discourse">
+      <small>${this.formatDateDMY(d.date)} · ${this.escapeHtml(d.category || 'discurso')}</small>
+      <blockquote>“${this.escapeHtml(d.quote || '')}”</blockquote>
+      <span>${this.escapeHtml(d.interpretation || d.reading || '')}</span>
+    </article>`;
+  },
+
+  formatSergioPace(seconds){
+    const s = Number(seconds || 0);
+    if(!s) return '--';
+    return `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}/km`;
+  },
+
+  openSergioImportModal(){
+    this.openModal(`
+      <div class="modal-card">
+        <button class="modal-close" onclick="app.closeModal()">×</button>
+        <div class="modal-title">Importar JSON Sergio</div>
+        <div class="modal-subtitle">Pega el JSON generado desde el chat. Puede ser pack completo o un registro individual.</div>
+        <textarea id="sergioJsonInput" class="json-area" placeholder='{"type":"sergio_evidence", ...}'></textarea>
+        <button class="btn" onclick="app.importSergioJSON()">Importar</button>
+        <button class="btn secondary" onclick="app.closeModal()">Cancelar</button>
+      </div>
+    `);
+  },
+
+  importSergioJSON(){
+    const raw = document.getElementById('sergioJsonInput')?.value || '';
+    try{
+      const parsed = JSON.parse(raw);
+      const monitor = this.convertSergioImport(parsed);
+      this.db.sergioMonitor = this.mergeSergioMonitor(this.db.sergioMonitor || this.buildDefaultSergioMonitor(), monitor);
+      this.db.sergioMonitor.imports.push({ id:`import_${Date.now()}`, date:this.todayISO(), type:'json', count:raw.length });
+      this.save();
+      this.closeModal();
+      this.renderAll();
+      this.toast('JSON Sergio importado');
+    }catch(err){
+      alert('JSON inválido: ' + (err.message || err));
+    }
+  },
+
+  convertSergioImport(input){
+    if(Array.isArray(input)) return input.reduce((acc,item)=> this.mergeSergioMonitor(acc, this.convertSergioImport(item)), this.emptySergioPatch());
+    if(input.training_sessions || input.planned_weeks || input.athlete || input.discourse_logs) return input;
+    const out = this.emptySergioPatch();
+    const type = input.type || input.kind || '';
+    if(type === 'sergio_evidence' || type === 'training' || type === 'run'){
+      const duration = input.duration_sec || input.timeSeconds || this.parseDurationToSeconds(input.duration || input.time || '');
+      out.training_sessions.push({
+        id:input.id || `evidence_${input.date || this.todayISO()}_${Date.now()}`,
+        date:input.date || this.todayISO(),
+        type:input.activity || input.activityType || 'run_outdoor',
+        distance_km:Number(input.distanceKm || input.distance_km || input.km || 0),
+        duration_sec:duration,
+        pace_sec_per_km: input.pace_sec_per_km || (duration && Number(input.distanceKm || input.distance_km || input.km) ? Math.round(duration/Number(input.distanceKm || input.distance_km || input.km)) : 0),
+        avg_hr:input.avgHr || input.avg_hr || input.fc || input.hr || '',
+        max_hr:input.maxHr || input.max_hr || '',
+        steps:input.steps || input.pasos || '',
+        calories:input.calories || input.kcal || '',
+        source:input.source || 'chat_json',
+        evidence:input.evidenceStrength || input.evidence || 'alta',
+        notes:input.notes || input.note || ''
+      });
+    }else if(type === 'sergio_discourse'){
+      out.discourse_logs.push({ id:input.id || `disc_${Date.now()}`, date:input.date || this.todayISO(), speaker:input.speaker || 'sergio', quote:input.quote || '', category:input.category || 'discurso', interpretation:input.reading || input.interpretation || '', evidence:input.evidence || 'chat' });
+    }else if(type === 'sergio_week_plan'){
+      const weekId = input.id || `week_${input.weekStart || input.week_start || this.todayISO()}`;
+      out.planned_weeks.push({ id:weekId, week_start:input.weekStart || input.week_start, week_end:input.weekEnd || input.week_end, target_km:Number(input.targetKm || input.target_km || 0), status:input.status || 'active', notes:input.notes || '' });
+      (input.sessions || []).forEach((s,i)=> out.planned_sessions.push({ id:s.id || `${weekId}_${i}`, week_id:weekId, date:s.date, day:s.day || this.weekdayName(s.date).toLowerCase(), type:s.type || 'run', target_km:Number(s.plannedKm || s.targetKm || s.target_km || 0) }));
+    }else if(type === 'sergio_race_result'){
+      const sec = input.official_time_sec || this.parseDurationToSeconds(input.officialChipTime || input.time || '');
+      out.race_events.push({ id:input.id || `race_${Date.now()}`, event_name:input.raceName || input.event_name || 'Carrera', date:input.date || this.todayISO(), distance_km:Number(input.distanceKm || input.distance_km || 0), official_time_sec:sec, official_pace_sec_per_km:sec && Number(input.distanceKm || input.distance_km) ? Math.round(sec/Number(input.distanceKm || input.distance_km)) : 0, source:input.source || 'chat_json', medal:!!input.medalAsset, notes:input.notes || '' });
+    }else if(type === 'sergio_weight'){
+      out.weight_logs.push({ id:input.id || `w_${input.date || this.todayISO()}_${Date.now()}`, date:input.date || this.todayISO(), weight_kg:Number(input.weightKg || input.weight_kg || input.value || 0), source:input.source || 'chat_json', is_real:true, notes:input.notes || '' });
+    }else if(type === 'sergio_alert'){
+      out.injury_alerts.push({ id:input.id || `alert_${Date.now()}`, date:input.date || this.todayISO(), area:input.area || '', issue:input.issue || input.title || 'Alerta', severity:input.severity || 'medium', status:input.status || 'watch', rule:input.rule || '', notes:input.notes || '' });
+    }
+    return out;
+  },
+
+  emptySergioPatch(){
+    return { training_sessions:[], planned_weeks:[], planned_sessions:[], compliance_daily:[], race_events:[], discourse_logs:[], injury_alerts:[], weight_logs:[], monthly_summaries:[], coach_messages:[], imports:[] };
+  },
+
+  parseDurationToSeconds(text){
+    if(typeof text === 'number') return text;
+    const parts = String(text||'').trim().split(':').map(Number);
+    if(parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+    if(parts.length === 2) return parts[0]*60 + parts[1];
+    return 0;
+  },
+
+  copySergioJSON(){
+    const text = JSON.stringify(this.db.sergioMonitor || this.buildDefaultSergioMonitor(), null, 2);
+    navigator.clipboard.writeText(text).then(()=>this.toast('JSON Sergio copiado'));
+  },
+
+  copySergioTXT(){
+    const m = this.db.sergioMonitor || this.buildDefaultSergioMonitor();
+    const week = this.getSergioActiveWeek();
+    const s = this.getSergioWeekSummary(week);
+    const lines = [
+      'SERGIO MONITOR — EXPORTACIÓN PARA CHAT',
+      `Generado: ${new Date().toLocaleString('es-CL')}`,
+      '',
+      'RESUMEN SEMANAL',
+      `Semana: ${s.label}`,
+      `Objetivo: ${s.targetKm} km`,
+      `Real: ${s.actualKm} km`,
+      `Cumplimiento: ${s.percent}%`,
+      `Sesiones con evidencia: ${s.completedSessions}/${s.plannedSessions}`,
+      '',
+      'EVIDENCIA RECIENTE',
+      ...this.getSergioLatestEvidence(10).map(e => `${this.formatDateDMY(e.date)} · ${this.formatDistance(e.distance_km)} km · ${this.formatDuration(Number(e.duration_sec||0))} · ${this.formatSergioPace(e.pace_sec_per_km)} · FC ${e.avg_hr || '--'} · fuente ${e.source || '--'}`),
+      '',
+      'DISCURSO RECIENTE',
+      ...(m.discourse_logs||[]).slice(-8).map(d => `${this.formatDateDMY(d.date)} · ${d.category || 'discurso'} · “${d.quote || ''}” · ${d.interpretation || ''}`),
+      '',
+      'ALERTAS',
+      ...(m.injury_alerts||[]).map(a => `${this.formatDateDMY(a.date)} · ${a.issue || a.area || 'alerta'} · ${a.status || 'watch'} · ${a.rule || a.notes || ''}`)
+    ].join('\n');
+    navigator.clipboard.writeText(lines).then(()=>this.toast('Resumen Sergio copiado'));
+  },
+
+  copySergioTrainingCSV(){
+    const rows = [['fecha','tipo','distancia_km','duracion','ritmo','fc_media','fc_max','pasos','calorias','fuente','evidencia','notas']];
+    (this.db.sergioMonitor?.training_sessions || []).forEach(e => rows.push([e.date, e.type, e.distance_km, this.formatDuration(Number(e.duration_sec||0)), this.formatSergioPace(e.pace_sec_per_km), e.avg_hr||'', e.max_hr||'', e.steps||'', e.calories||'', e.source||'', e.evidence||'', e.notes||'']));
+    const csv = rows.map(r => r.map(v=>this.csvSafe(v)).join(',')).join('\n');
+    navigator.clipboard.writeText(csv).then(()=>this.toast('CSV Sergio copiado'));
+  },
+
+  toast(message){
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(()=>el.classList.add('show'), 10);
+    setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 250); }, 2200);
   },
 
   renderEntrenamiento(){
@@ -2166,6 +2510,7 @@ const app = {
     base.goalWeight = local.goalWeight || remote.goalWeight || 90;
     base.startWeight = local.startWeight || remote.startWeight || base.weights?.[0]?.value || 109;
     base.race = local.race?.title ? local.race : (remote.race || local.race || {title:'',date:'',distance:''});
+    base.sergioMonitor = this.mergeSergioMonitor(remote.sergioMonitor || this.buildDefaultSergioMonitor(), local.sergioMonitor || {});
     return base;
   },
 
@@ -2323,6 +2668,119 @@ const app = {
     return Math.max(0, Math.min(100, Math.round(mealScore + waterScore - penalty)));
   },
 
+
+  getPerformanceInsights(){
+    const runs = (this.db.sessions || [])
+      .map(s => this.sessionMetricsView(s))
+      .filter(s => s.type === 'run' && Number(s.km || 0) > 0 && Number(s.timeSeconds || 0) > 0)
+      .sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+    const latestRun = runs.length ? runs[runs.length - 1] : null;
+
+    const bestPaceRun = runs.length
+      ? [...runs].sort((a,b)=> (Number(a.timeSeconds)/Number(a.km)) - (Number(b.timeSeconds)/Number(b.km)))[0]
+      : null;
+
+    const fcRuns = runs.filter(s => Number(s.fc || s.avgHr || 0) > 0);
+    const latestFcRun = fcRuns.length ? fcRuns[fcRuns.length - 1] : null;
+    const bestFcRun = fcRuns.length
+      ? [...fcRuns].sort((a,b)=> Number(a.fc || a.avgHr) - Number(b.fc || b.avgHr))[0]
+      : null;
+
+    const strideRuns = runs.filter(s => Number(s.strideLength || 0) > 0);
+    const latestStrideRun = strideRuns.length ? strideRuns[strideRuns.length - 1] : null;
+    const bestStrideRun = strideRuns.length
+      ? [...strideRuns].sort((a,b)=> Number(b.strideLength || 0) - Number(a.strideLength || 0))[0]
+      : null;
+
+    return {
+      pace:this.buildPaceInsight(bestPaceRun, latestRun),
+      fc:this.buildFCInsight(bestFcRun, latestFcRun),
+      stride:this.buildStrideInsight(bestStrideRun, latestStrideRun)
+    };
+  },
+
+  buildPaceInsight(best, latest){
+    if(!best) return null;
+    const bestSeconds = Number(best.timeSeconds) / Number(best.km);
+    const latestSeconds = latest ? Number(latest.timeSeconds) / Number(latest.km) : bestSeconds;
+    const delta = bestSeconds - latestSeconds;
+    return {
+      type:'pace',
+      icon:'assets/icons/trend.svg',
+      title:'Mejor ritmo',
+      value:this.formatPaceSeconds(bestSeconds),
+      delta:`vs último: ${this.formatPaceDelta(delta)}`,
+      date:`Fecha: ${this.formatDateDDMMYYYY(best.date)}`,
+      positive:delta <= 0
+    };
+  },
+
+  buildFCInsight(best, latest){
+    if(!best) return null;
+    const bestValue = Number(best.fc || best.avgHr || 0);
+    const latestValue = latest ? Number(latest.fc || latest.avgHr || 0) : bestValue;
+    const delta = bestValue - latestValue;
+    return {
+      type:'fc',
+      icon:'assets/icons/heart.svg',
+      title:'Mejor FC',
+      value:`${bestValue} lpm`,
+      delta:`vs último: ${delta >= 0 ? '+' : ''}${delta} lpm`,
+      date:`Fecha: ${this.formatDateDDMMYYYY(best.date)}`,
+      positive:delta <= 0
+    };
+  },
+
+  buildStrideInsight(best, latest){
+    if(!best) return null;
+    const bestValue = Number(best.strideLength || 0);
+    const latestValue = latest ? Number(latest.strideLength || 0) : bestValue;
+    const delta = bestValue - latestValue;
+    return {
+      type:'stride',
+      icon:'assets/icons/shoe.svg',
+      title:'Mejor zancada promedio',
+      value:`${bestValue} cm`,
+      delta:`vs último: ${delta >= 0 ? '+' : ''}${delta} cm`,
+      date:`Fecha: ${this.formatDateDDMMYYYY(best.date)}`,
+      positive:delta >= 0
+    };
+  },
+
+  formatPaceDelta(deltaSeconds){
+    const sign = deltaSeconds > 0 ? '+' : '-';
+    const abs = Math.abs(Math.round(deltaSeconds));
+    const m = Math.floor(abs / 60);
+    const s = String(abs % 60).padStart(2,'0');
+    return `${sign}${m}:${s}`;
+  },
+
+  formatDateDDMMYYYY(date){
+    if(!date) return '--';
+    const d = new Date(`${String(date).slice(0,10)}T12:00:00`);
+    if(Number.isNaN(d.getTime())) return '--';
+    const day = String(d.getDate()).padStart(2,'0');
+    const month = String(d.getMonth()+1).padStart(2,'0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  },
+
+  renderPerformanceInsightCard(item){
+    if(!item) return '';
+    const deltaClass = item.positive ? 'positive' : 'negative';
+    return `
+      <div class="performance-insight-card ${item.type}">
+        <img src="${this.escapeAttr(item.icon)}" alt="${this.escapeAttr(item.title)}" class="performance-insight-icon">
+        <div>
+          <b>${this.escapeHtml(item.title)}</b>
+          <strong>${this.escapeHtml(item.value)}</strong>
+          <span class="${deltaClass}">${this.escapeHtml(item.delta)}</span>
+          <small>${this.escapeHtml(item.date)}</small>
+        </div>
+      </div>
+    `;
+  },
   getSmartSignals(){
     const activePlan = this.getActivePlan();
     const due = this.getDuePlanMetrics(activePlan);
@@ -2360,16 +2818,32 @@ const app = {
   },
 
   renderHomeSignals(signals = this.getSmartSignals()){
-    const list = [...signals.risk, ...signals.active, ...signals.streaks, ...signals.achievements]
-      .sort((a,b)=>a.priority-b.priority)
-      .slice(0,3);
-    if(!list.length) return '';
+    const habits = this.getHabitKPIs();
+    const perf = this.getPerformanceInsights();
+    const alcoholText = `${habits.daysWithoutAlcohol} día${habits.daysWithoutAlcohol === 1 ? '' : 's'} sin alcohol`;
+    const pautaText = `${habits.daysWithoutOffPlan} día${habits.daysWithoutOffPlan === 1 ? '' : 's'} adherido${habits.daysWithoutOffPlan === 1 ? '' : 's'} a la pauta`;
+    const performanceCards = [perf.pace, perf.fc, perf.stride]
+      .filter(Boolean)
+      .map(item => this.renderPerformanceInsightCard(item))
+      .join('');
+
+    const fallback = [...signals.risk, ...signals.active]
+      .sort((a,b)=>a.priority-b.priority)[0];
+
     return `
-      <section class="card signals-card compact-signals-card">
+      <section class="card insights-intelligent-card">
         <div class="label">Insights inteligentes</div>
-        <div class="signal-list compact horizontal">
-          ${list.map(s=>this.signalItem(s)).join('')}
+        <div class="insight-streak-grid">
+          <div class="insight-streak-card">
+            <img src="assets/icons/check.svg" alt="check" class="insight-streak-icon">
+            <div><b>${this.escapeHtml(alcoholText)}</b><span>Buena señal para recuperación.</span></div>
+          </div>
+          <div class="insight-streak-card">
+            <img src="assets/icons/check.svg" alt="check" class="insight-streak-icon">
+            <div><b>${this.escapeHtml(pautaText)}</b><span>Consistencia nutricional.</span></div>
+          </div>
         </div>
+        ${performanceCards ? `<div class="performance-insights-grid">${performanceCards}</div>` : fallback ? `<div class="signal-list compact horizontal">${this.signalItem(fallback)}</div>` : ''}
       </section>
     `;
   },

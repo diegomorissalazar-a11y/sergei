@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=079" />
+  <link rel="stylesheet" href="styles.css?v=080" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -21,6 +21,7 @@
     <section id="progreso" class="page"></section>
     <section id="nutricion" class="page"></section>
     <section id="medallas" class="page"></section>
+    <section id="sergio" class="page"></section>
   </main>
 
   <div id="modal" class="modal hidden"></div>
@@ -50,8 +51,12 @@
       <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="8" r="5"></circle><path d="M9 13l-2 8 5-3 5 3-2-8"></path><path d="M9.5 8.2l1.6 1.6 3.4-3.8"></path></svg>
       <span>Medallas</span>
     </button>
+    <button class="tab" onclick="app.go('sergio', this)" aria-label="Sergio">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 19V5"></path><path d="M8 17V9"></path><path d="M12 19V7"></path><path d="M16 15V11"></path><path d="M20 19V4"></path><path d="M4 19h17"></path></svg>
+      <span>Sergio</span>
+    </button>
   </nav>
 
-  <script type="module" src="app.js?v=079"></script>
+  <script type="module" src="app.js?v=080"></script>
 </body>
 </html>
